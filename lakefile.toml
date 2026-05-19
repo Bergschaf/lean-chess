@@ -1,0 +1,10 @@
+name = "Chess"
+version = "0.1.0"
+defaultTargets = ["chess"]
+
+[[lean_lib]]
+name = "Chess"
+
+[[lean_exe]]
+name = "chess"
+root = "Main"
