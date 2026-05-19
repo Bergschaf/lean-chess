@@ -48,14 +48,18 @@ def FENtoBoard (fen : FEN_String) : Board where
         | some n => colPos := colPos + (Fin.ofNat 8 n)
     return board
 
-instance : Repr Board where
-  reprPrec b n := Id.run do
-    let mut res : Std.Format := ""
-    for hi : i in [:8] do
-      for hj : j in [:8] do
-        res := res.append <| Repr.reprPrec (b.SquareAt ⟨⟨i,Membership.get_elem_helper hi rfl⟩, ⟨j, Membership.get_elem_helper hj rfl⟩⟩) 1
-      res := res.append "\n"
-    return res
+
+def Board.toString (b : Board) : String := Id.run do
+  let header := " a b c d e f g h\n"
+  let mut res := ""
+  for hi : i in [:8] do
+    for hj : j in [:8] do
+      res := res ++ " " ++ (b.SquareAt ⟨⟨i,Membership.get_elem_helper hi rfl⟩, ⟨j, Membership.get_elem_helper hj rfl⟩⟩).toString
+    res := res ++ s!" {i+1} \n"
+  return header ++ res ++ header
+
+instance : ToString Board where
+  toString b := b.toString
 
 instance : One Board where
   one := FENtoBoard (parseFenString startString)

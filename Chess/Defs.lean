@@ -30,26 +30,25 @@ instance : Zero Square where
 instance : Inhabited Square where
   default := 0
 
-instance : Repr Square where
-  reprPrec s _ :=
-    match s with
-    | .Empty => "·"
-    | .Black p =>
-      match p with
-      | .Pawn => "♟"
-      | .Knight => "♞"
-      | .Bishop => "♝"
-      | .Rook => "♜"
-      | .Queen => "♛"
-      | .King => "♚"
-    | .White p =>
-      match p with
-      | .Pawn => "♙"
-      | .Knight => "♘"
-      | .Bishop => "♗"
-      | .Rook => "♖"
-      | .Queen => "♕"
-      | .King => "♔"
+def Square.toString (s : Square) : String :=
+  match s with
+  | .Empty => "·"
+  | .Black p =>
+    match p with
+    | .Pawn => "♟"
+    | .Knight => "♞"
+    | .Bishop => "♝"
+    | .Rook => "♜"
+    | .Queen => "♛"
+    | .King => "♚"
+  | .White p =>
+    match p with
+    | .Pawn => "♙"
+    | .Knight => "♘"
+    | .Bishop => "♗"
+    | .Rook => "♖"
+    | .Queen => "♕"
+    | .King => "♔"
 
 structure Location where
   row : Fin 8
@@ -57,8 +56,8 @@ structure Location where
 
 def columnMap : List String := ["A","B","C","D","E","F","G","H"]
 
-instance : Repr Location where
-  reprPrec l n :=
+instance : ToString Location where
+  toString l :=
     columnMap[l.column].append (l.row + 1 : Nat).repr
 
 instance : Coe (Fin 64) Location where
@@ -75,6 +74,11 @@ inductive Turn where
   | White
   | Black
 deriving Repr, DecidableEq
+
+def Turn.next (t : Turn) : Turn :=
+  match t with
+  | .White => .Black
+  | .Black => .White
 
 def Square.ofTurn (t : Turn) : Piece → Square :=
   match t with
@@ -136,10 +140,10 @@ inductive Move where
 instance : Inhabited Move where
   default := Move.en_passant ⟨0,0⟩
 
-instance : Repr Move where
-  reprPrec m n :=
+instance : ToString Move where
+  toString m :=
     match m with
-    | .move m => (Repr.reprPrec m.1 10).append " → " |>.append (Repr.reprPrec m.2 10)
+    | .move m => (toString m.1) ++ " → " ++ toString m.2
     | _ => "Not implemented"
 
 namespace Board
