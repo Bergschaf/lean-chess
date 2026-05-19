@@ -33,7 +33,7 @@ instance : Inhabited Square where
 instance : Repr Square where
   reprPrec s _ :=
     match s with
-    | .Empty => " "
+    | .Empty => "·"
     | .Black p =>
       match p with
       | .Pawn => "♟"
@@ -55,6 +55,12 @@ structure Location where
   row : Fin 8
   column : Fin 8
 
+def columnMap : List String := ["A","B","C","D","E","F","G","H"]
+
+instance : Repr Location where
+  reprPrec l n :=
+    columnMap[l.column].append (l.row + 1 : Nat).repr
+
 instance : Coe (Fin 64) Location where
   coe x := ⟨⟨x / 8, by grind⟩, ⟨x % 8,by grind⟩⟩
 
@@ -62,38 +68,57 @@ def Location.toFin (l : Location) : Fin 64 where
   val := l.row * 8 + l.column
   isLt := by grind
 
+#eval (⟨1,7⟩ : Location).toFin
+#eval ((15 : Fin 64) : Location)
 
 inductive Turn where
   | White
   | Black
-deriving Repr
+deriving Repr, DecidableEq
 
+def Square.ofTurn (t : Turn) : Piece → Square :=
+  match t with
+  | .White => Square.White
+  | .Black => Square.Black
+
+
+/-- TODO beachten wer wo steht -/
 def Location.forward (l : Location) (t : Turn) : Option Location :=
   match t with
-  | Turn.White => if l.row < 7 then some ⟨l.row + 1, l.column⟩ else none
-  | Turn.Black => if l.row > 0 then some ⟨l.row - 1, l.column⟩ else none
+  | Turn.Black => if l.row < 7 then some ⟨l.row + 1, l.column⟩ else none
+  | Turn.White => if l.row > 0 then some ⟨l.row - 1, l.column⟩ else none
+
+/-- TODO effizientere Versionen die nur links rechts oder oben unten macht -/
+def Location.shift (l : Location) (row : Int) (col : Int) : Option Location :=
+  if hi : l.row + row < 0 ∨ l.row + row > 7 ∨ l.column + col < 0 ∨ l.column + col > 7 then none else
+    some ⟨⟨(l.row + row).toNat, by grind⟩, ⟨(l.column + col).toNat, by grind⟩⟩
 
 namespace Square
 
-def IsWhite (s : Square) : Prop :=
+def IsWhite (s : Square) : Bool :=
   match s with
   | .Empty => False
   | .Black _ => False
   | .White _ => True
 
-def IsBlack (s : Square) : Prop :=
+def IsBlack (s : Square) : Bool :=
   match s with
   | .Empty => False
   | .Black _ => True
   | .White _ => False
 
-def IsNonempty (s : Square) : Prop :=
-  match s with
-  | .Empty => False
-  | _ => True
+abbrev IsNonempty (s : Square) : Bool := s ≠ .Empty
+
+abbrev IsEmpty (s : Square) : Bool := s = .Empty
+
+abbrev CanMoveTo (s : Square) (t : Turn) : Bool := s.IsEmpty ||
+  match t with
+  | .Black => s.IsWhite
+  | .White => s.IsBlack
 
 def IsOppositeColor (s1 s2 : Square) : Prop :=
   (s1.IsBlack ∧ s2.IsWhite) ∨ (s1.IsWhite ∧ s2.IsBlack)
+
 
 end Square
 
@@ -107,6 +132,15 @@ inductive Move where
   | en_passant (l : Location)
   | castle_short (w : Turn)
   | castle_long (w : Turn)
+
+instance : Inhabited Move where
+  default := Move.en_passant ⟨0,0⟩
+
+instance : Repr Move where
+  reprPrec m n :=
+    match m with
+    | .move m => (Repr.reprPrec m.1 10).append " → " |>.append (Repr.reprPrec m.2 10)
+    | _ => "Not implemented"
 
 namespace Board
 
