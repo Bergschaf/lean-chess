@@ -55,7 +55,8 @@ structure Location where
   column : Fin 8
 
 
-def Location.toBitVec (l : Location) : BitVec 64 := 1 <<< (l.row * 8 + l.column)
+def Location.toBitVec (l : Location) : BitVec 64 := 1 <<< (l.row.toNat * 8 + l.column.toNat)
+
 
 def columnMap : List String := ["A","B","C","D","E","F","G","H"]
 

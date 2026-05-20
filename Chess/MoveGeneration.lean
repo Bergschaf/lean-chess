@@ -40,6 +40,8 @@ def Board.getPawnMovesAt (b : Board) (t : Turn) (location : Location)
         moves := (.move (location, side_location))::moves
   return moves
 
+def Board.getPawnAttackAt (b : Board) (t : Turn) (location : Location)
+
 /-- Wie kann das pferd springen -/
 private def shifts : List (Int × Int) := [⟨2, 1⟩, ⟨2,-1⟩, ⟨-2,1⟩, ⟨-2,-1⟩, ⟨1, 2⟩, ⟨1,-2⟩, ⟨-1,2⟩, ⟨-1, -2⟩]
 
@@ -127,14 +129,16 @@ private def Board.possibleMovesTr (b : Board) (t : Turn) (square : Fin 64) (move
 def Board.getKingBitVec (b : Board) (t : Turn) : BitVec 64 := sorry
 
 /-TODO make more efficient -/
+-- Achtung bauer attack und position ist anders
 /-- All the squares attacked by the Player t  -/
+
 def Board.getAttackBitVec (b : Board) (t : Turn) : BitVec 64 :=
   b.possibleMovesTr t 63 [] |>.foldl (fun acc m ↦ acc ||| match m with | .move l => l.2.toBitVec | _ => 0) 0
 
 def TestBoard := FENtoBoard (parseFenString "8/8/3NP3/8/2r1R3/8/4q3/8 test")
 
 #eval TestBoard
-#eval TestBoard.getAttackBitVec .White
+#eval Board.displayBitVec (TestBoard.getAttackBitVec .White)
 
 /-- True if the Player t is in check -/
 def Board.IsCheck (b : Board) (t : Turn) : Bool :=

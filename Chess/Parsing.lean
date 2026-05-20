@@ -58,6 +58,16 @@ def Board.toString (b : Board) : String := Id.run do
     res := res ++ s!" {i+1} \n"
   return header ++ res ++ header
 
+def Board.displayBitVec (bv : BitVec 64) : Std.Format := Id.run do
+  let header := " a b c d e f g h\n"
+  let mut res := ""
+  for hi : i in [:8] do
+    for hj : j in [:8] do
+      res := res ++ " " ++ if (⟨⟨i,Membership.get_elem_helper hi rfl⟩, ⟨j, Membership.get_elem_helper hj rfl⟩⟩ : Location).toBitVec &&& bv ≠ 0 then "■" else "·"
+    res := res ++ s!" {i+1} \n"
+  return header ++ res ++ header
+
+
 instance : ToString Board where
   toString b := b.toString
 
