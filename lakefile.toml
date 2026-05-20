@@ -8,3 +8,8 @@ name = "Chess"
 [[lean_exe]]
 name = "chess"
 root = "Main"
+
+[[require]]
+name = "batteries"
+scope = "leanprover-community"
+rev = "main"

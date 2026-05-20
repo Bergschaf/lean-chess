@@ -203,6 +203,7 @@ inductive Move where
   | en_passant (l : Location)
   | castle_short (w : Turn)
   | castle_long (w : Turn)
+  | empty
 
 instance : Inhabited Move where
   default := Move.en_passant ⟨0,0⟩
