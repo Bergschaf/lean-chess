@@ -20,27 +20,46 @@ end Evalutation
 
 def bigScore := 200
 
-structure CounterM (α : Type) where
-  val : α
-  count : Nat := 0
-deriving Repr
+abbrev CounterM := StateM Nat
 
-instance : Monad CounterM where
-  pure a := ⟨a, 1⟩
-  bind ma f := let x := f ma.val; ⟨x.val, x.count + ma.count⟩
+def tick : CounterM Unit := do
+  modify (· + 1)
 
+def α₀ := -10000000
+def β₀ :=  10000000
 
-def getScore (b : Board) (player : Turn) (t : Turn) (depth : Nat) : CounterM Int := do
+/--
+α: Sicheres Maximum für Player
+β: Sichers Minimum für Gegner
+-/
+def getScore (b : Board) (player : Turn) (t : Turn) (α β : Int) (depth : Nat) : CounterM Int := do
+  tick
   match depth with
-  | 0 => pure <| b.evaluate player
-  | .succ n =>
-    if t = player then
-      (b.possibleMoves t).foldlM (fun (acc : Int) (m : Move) ↦
-      if acc > bigScore then pure acc else (max acc) <$> (getScore (b.applyMove m) player t.next n)) (-1000 : Int)
-    else
-      (b.possibleMoves t).foldlM (fun acc m ↦
-      if -acc > bigScore then pure acc else (min acc) <$> (getScore (b.applyMove m) player t.next n)) (1000 : Int)
+  | 0 =>
+      return b.evaluate player
+  | n + 1 =>
+      let moves := b.possibleMoves t
+      if moves.isEmpty then
+        return b.evaluate player
+      else
+        if t = player then
+          moves.foldlM (fun acc m ↦ do
+            if acc > β then pure acc else
+            let s ← getScore (b.applyMove m) player t.next (max α acc) β n
+            pure (max acc s)
+          ) α₀
+        else
+          moves.foldlM (fun acc m ↦ do
+            if acc < α then pure acc else
+            let s ← getScore (b.applyMove m) player t.next α (min β acc) n
+            pure (min acc s)
+          ) β₀
 
+def TestBoard1 := FENtoBoard (parseFenString "4k3/2pp3p/4b3/1np1p1q1/1N1P3P/4BPP1/P3P3/R2QKBNR test")
+#time #eval (getScore TestBoard1 .White .White  α₀ β₀ 4).run 0
+
+
+/--/
 /-- TODO Was wenn keine Moves -/
 def Board.bestMove (b : Board) (t : Turn) (depth : Nat) : Move × (CounterM Int) :=
   (b.possibleMoves t).map (fun m ↦ (m,getScore (b.applyMove m) t t.next depth)) |>.maxOn? (fun mt ↦ mt.2.val) |>.get!

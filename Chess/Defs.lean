@@ -54,6 +54,9 @@ structure Location where
   row : Fin 8
   column : Fin 8
 
+
+def Location.toBitVec (l : Location) : BitVec 64 := 1 <<< (l.row * 8 + l.column)
+
 def columnMap : List String := ["A","B","C","D","E","F","G","H"]
 
 instance : ToString Location where
@@ -92,10 +95,73 @@ def Location.forward (l : Location) (t : Turn) : Option Location :=
   | Turn.Black => if l.row < 7 then some ⟨l.row + 1, l.column⟩ else none
   | Turn.White => if l.row > 0 then some ⟨l.row - 1, l.column⟩ else none
 
+inductive Direction where
+  | neg_neg
+  | pos_pos
+  | pos_neg
+  | neg_pos
+  | zero_neg
+  | zero_pos
+  | pos_zero
+  | neg_zero
+deriving Repr
+def Location.shift (l : Location) (d : Direction) : Option Location :=
+  match d with
+  | .neg_neg =>
+      if h : l.row = 0 ∨ l.column = 0 then none
+      else some ⟨⟨l.row - 1, by grind⟩, ⟨l.column - 1, by grind⟩⟩
+
+  | .pos_pos =>
+      if h : l.row = 7 ∨ l.column = 7 then none
+      else some ⟨⟨l.row + 1, by grind⟩, ⟨l.column + 1, by grind⟩⟩
+
+  | .pos_neg =>
+      if h : l.row = 7 ∨ l.column = 0 then none
+      else some ⟨⟨l.row + 1, by grind⟩, ⟨l.column - 1, by grind⟩⟩
+
+  | .neg_pos =>
+      if h : l.row = 0 ∨ l.column = 7 then none
+      else some ⟨⟨l.row - 1, by grind⟩, ⟨l.column + 1, by grind⟩⟩
+
+  | .zero_neg =>
+      if h : l.column = 0 then none
+      else some ⟨⟨l.row, by grind⟩, ⟨l.column - 1, by grind⟩⟩
+
+  | .zero_pos =>
+      if h : l.column = 7 then none
+      else some ⟨⟨l.row, by grind⟩, ⟨l.column + 1, by grind⟩⟩
+
+  | .pos_zero =>
+      if h : l.row = 7 then none
+      else some ⟨⟨l.row + 1, by grind⟩, ⟨l.column, by grind⟩⟩
+
+  | .neg_zero =>
+      if h : l.row = 0 then none
+      else some ⟨⟨l.row - 1, by grind⟩, ⟨l.column, by grind⟩⟩
 /-- TODO effizientere Versionen die nur links rechts oder oben unten macht -/
-def Location.shift (l : Location) (row : Int) (col : Int) : Option Location :=
+def Location.shift' (l : Location) (row : Int) (col : Int) : Option Location :=
   if hi : l.row + row < 0 ∨ l.row + row > 7 ∨ l.column + col < 0 ∨ l.column + col > 7 then none else
     some ⟨⟨(l.row + row).toNat, by grind⟩, ⟨(l.column + col).toNat, by grind⟩⟩
+
+def Location.distance_to_edge (l : Location) (d : Direction) : Nat :=
+  match d with
+  | .neg_neg =>
+      min l.row.toNat l.column.toNat
+  | .pos_pos =>
+      min (7 - l.row.toNat) (7 - l.column.toNat)
+  | .pos_neg =>
+      min (7 - l.row.toNat) l.column.toNat
+  | .neg_pos =>
+      min l.row.toNat (7 - l.column.toNat)
+  | .zero_pos =>
+      7 - l.column.toNat
+  | .zero_neg =>
+      l.column.toNat
+  | .pos_zero =>
+      7 - l.row.toNat
+  | .neg_zero =>
+      l.row.toNat
+
 
 namespace Square
 
