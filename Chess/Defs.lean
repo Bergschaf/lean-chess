@@ -19,7 +19,8 @@ def Piece.value (p : Piece) :=
   | Queen => 90
   | King => 0
 
-@[unbox]
+
+-- TODO ggf optimieren, d.h. square ist nur ein u8 und der rest wird durch API geregelt
 inductive Square where
   | Empty
   | Black (piece : Piece)
