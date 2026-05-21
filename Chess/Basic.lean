@@ -90,10 +90,9 @@ def Board.bestMove (b : Board) (t : Turn) (depth : Nat) : Move × Int :=
             if score > acc.2 then (m, score) else acc) (Move.empty,α₀)
 
 
+--- TODO interator verwenden???
+--- TODO nicht Fin sondern Uint8 verwenden für location
 
-
-
--- TODO insgesamt DFS und dann alle mit schlechterem Score wegschmeißen
 
 def main : IO Unit := do
   let stdin <- IO.getStdin

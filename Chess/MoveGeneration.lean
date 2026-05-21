@@ -42,7 +42,6 @@ def Board.getPawnMovesAt (b : Board) (t : Turn) (location : Location)
   return moves
 
 
-
 /-- Wie kann das pferd springen -/
 private def shifts : List (Int × Int) := [⟨2, 1⟩, ⟨2,-1⟩, ⟨-2,1⟩, ⟨-2,-1⟩, ⟨1, 2⟩, ⟨1,-2⟩, ⟨-1,2⟩, ⟨-1, -2⟩]
 
@@ -54,6 +53,7 @@ def Board.getKnightMovesAt (b : Board) (t : Turn) (location : Location)
     if (b.SquareAt target).CanMoveTo t then
       moves := (.move (location, target))::moves
   return moves
+
 
 def Board.moveUntilFailTr (b : Board) (t : Turn) (base_location : Location) (location : Location) (direction : Direction) (moves : List Move) : List Move :=
   let new_location' := location.shift direction
@@ -127,40 +127,27 @@ private def Board.possibleMovesTr (b : Board) (t : Turn) (square : Fin 64) (move
   if square = 0 then new_moves else b.possibleMovesTr t (square - 1) new_moves
 
 
-def Board.getKingBitVec (b : Board) (t : Turn) : BitVec 64 :=
+def Board.getKingBitVec (b : Board) (t : Turn) : UInt64 :=
   match (b.board.toArray.findIdx? (· = Square.ofTurn t Piece.King)) with
   | .none => dbg_trace "No King"; 0
-  | .some n => 1 <<< n
+  | .some n => (1 : UInt64) <<< (UInt64.ofNat n)
 
-private def Board.possibleAttackMovesTr (b : Board) (t : Turn) (square : Fin 64) (moves : List Move) :=
-  let new_moves := (let location : Location := square
-    match hb : b.SquareAt location with
-    | .Empty => moves
-    | .White p =>
-      if hw : t = Turn.White then
-        moves ++ match p with
-        | .Pawn => getPawnAttackAt b t location (by rw [hb, hw]; rfl)
-        | .Knight => getKnightMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Bishop => getBishopMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Rook =>  getRookMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Queen => getQueenMovesAt b t location (by rw [hb, hw]; rfl)
-        | .King => getKingMovesAt b t location (by rw [hb, hw]; rfl) else moves
-    | .Black p =>
-      if hw : t = Turn.Black then
-        moves ++ match p with
-        | .Pawn => getPawnAttackAt b t location (by rw [hb, hw]; rfl)
-        | .Knight => getKnightMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Bishop => getBishopMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Rook =>  getRookMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Queen => getQueenMovesAt b t location (by rw [hb, hw]; rfl)
-        | .King => getKingMovesAt b t location (by rw [hb, hw]; rfl)
-      else moves)
-  if square = 0 then new_moves else b.possibleAttackMovesTr t (square - 1) new_moves
 
-def Board.getPlayerBitVec (b : Board) (p : Turn) : BitVec 64 :=
-  BitVec.ofFnLE (fun i ↦ if p = .Black then (b.SquareAt i).IsBlack else (b.SquareAt i).IsWhite)
+def UInt64.ofFnTr (f : Fin 64 → Bool) (i : Fin 64) (soFar : UInt64) :=
+  if i = 0 then soFar ||| (if f 0 then 1 else 0) else .ofFnTr f (i - 1) (soFar ||| (if f i then 1 else 0))
 
-def Board.attackUntilFail (b : Board) (location : Location) (direction : Direction) (opponent soFar : BitVec 64) : BitVec 64 :=
+def Board.getPlayerBitVec (b : Board) (p : Turn) : UInt64 :=
+  UInt64.ofFnTr (fun i ↦ if p = .Black then (b.SquareAt i).IsBlack else (b.SquareAt i).IsWhite) 63 0
+
+/-- All the pieces -/
+def Board.getBitVec (b : Board) : UInt64 := .ofFnTr (fun i ↦ (b.SquareAt i).IsNonempty) 63 0
+
+/-- todo da wird zuviel konvertiert -/
+def UInt64.getBitAt (x : UInt64) (i : Fin 64) : Bool := (x >>> UInt64.ofNat i.toNat) &&& 1 = 1
+
+def UInt64.bitAt (i : Fin 64) : UInt64 := (1 : UInt64) <<< UInt64.ofNat i.toNat
+
+def Board.attackUntilFail (b : Board) (location : Location) (direction : Direction) (pieces soFar : UInt64) : UInt64 :=
   match hl : location.shift direction with
   | none => soFar
   | some new_location =>
@@ -169,47 +156,82 @@ def Board.attackUntilFail (b : Board) (location : Location) (direction : Directi
       simp [Location.shift] at hl
       cases direction <;> grind
     let i := new_location.toFin
-    if opponent[i] = true then soFar ||| (1 <<< i)
-    else b.attackUntilFail new_location direction opponent (soFar ||| (1 <<< i))
+    if pieces.getBitAt i = true then soFar ||| UInt64.bitAt i
+    else b.attackUntilFail new_location direction pieces (soFar ||| UInt64.bitAt i)
 termination_by location.distance_to_edge direction
 
-def Board.attackUntilFailDirections (b : Board) (location : Location) (directions : List Direction) (opponent soFar : BitVec 64) :=
+
+def Board.attackUntilFailDirections (b : Board) (location : Location) (directions : List Direction) (pieces soFar : UInt64) :=
   match directions with
   | [] => soFar
   | direction::directions' =>
-    b.attackUntilFailDirections location directions' opponent (b.attackUntilFail location direction opponent soFar)
+    b.attackUntilFailDirections location directions' pieces (b.attackUntilFail location direction pieces soFar)
 
-def Board.getPawnAttackAt (b : Board) (location : Location) (t : Turn) : BitVec 64 :=
+def Board.getPawnAttackAt  (location : Location) (t : Turn) : UInt64 :=
   match location.forward t with
   | none => panic! "Bauer auf letztem Rang" -- es geht nicht vorwärts (das sollte eig nicht passieren)
   | some forward_location =>
     (match forward_location.shift .zero_pos with
     | none => 0
-    | some side_location => 1 <<< side_location.toFin) |||
+    | some side_location => UInt64.bitAt side_location.toFin) |||
     (match forward_location.shift .zero_neg with
     | none => 0
-    | some side_location => 1 <<< side_location.toFin)
+    | some side_location => UInt64.bitAt side_location.toFin)
+
+def Board.getKnightAttackAt (location : Location) : UInt64 := knightAttackTable[location.toFin]
+def Board.getKingAttackAt (location : Location) : UInt64 := kingAttackTable[location.toFin]
 
 /-- Assumes there is a Rook at location -/
-def Board.getRookAttackAt (b : Board) (location : Location) (opponent : BitVec 64) : BitVec 64 :=
-  b.attackUntilFailDirections location [.zero_neg, .zero_pos, .neg_zero, .pos_zero] opponent 0
+def Board.getRookAttackAt (b : Board) (location : Location) (pieces : UInt64) : UInt64 :=
+  b.attackUntilFailDirections location [.zero_neg, .zero_pos, .neg_zero, .pos_zero] pieces 0
 
-def Board.getBishopAttackAt (b : Board) (location : Location) (opponent : BitVec 64) : BitVec 64 :=
-  b.attackUntilFailDirections location [.neg_neg, .pos_pos, .neg_pos, .pos_neg] opponent 0
+def Board.getBishopAttackAt (b : Board) (location : Location) (pieces : UInt64) : UInt64 :=
+  b.attackUntilFailDirections location [.neg_neg, .pos_pos, .neg_pos, .pos_neg] pieces 0
 
-def Board.getQueenAttackAt (b : Board) (location : Location) (opponent : BitVec 64) : BitVec 64 :=
-  b.attackUntilFailDirections location [.neg_neg, .pos_pos, .neg_pos, .pos_neg, .zero_neg, .zero_pos, .neg_zero, .pos_zero] opponent 0
+def Board.getQueenAttackAt (b : Board) (location : Location) (pieces : UInt64) : UInt64 :=
+  b.attackUntilFailDirections location [.neg_neg, .pos_pos, .neg_pos, .pos_neg, .zero_neg, .zero_pos, .neg_zero, .pos_zero] pieces 0
 
-/-TODO make more efficient -/
+
+/-- boardBitVec in monaden? -/
+private def Board.whiteAttackBitVecTr (b : Board) (t : Turn) (square : Fin 64) (soFar boardBitVec : UInt64) :=
+  let newAttack := (let location : Location := square
+    match hb : b.SquareAt location with
+    | .White p  =>
+        soFar ||| match p with
+        | .Pawn => getPawnAttackAt location t
+        | .Knight => getKnightAttackAt location
+        | .Bishop => b.getBishopAttackAt location boardBitVec
+        | .Rook =>  b.getRookAttackAt location boardBitVec
+        | .Queen => b.getQueenAttackAt location boardBitVec
+        | .King => getKingAttackAt location
+      | _ => soFar)
+  if square = 0 then newAttack else b.whiteAttackBitVecTr t (square - 1) newAttack boardBitVec
+
+/-- boardBitVec in monaden? -/
+private def Board.blackAttackBitVecTr (b : Board) (t : Turn) (square : Fin 64) (soFar boardBitVec : UInt64) :=
+  let newAttack := (let location : Location := square
+    match hb : b.SquareAt location with
+    | .Black p  =>
+        soFar ||| match p with
+        | .Pawn => getPawnAttackAt location t
+        | .Knight => getKnightAttackAt location
+        | .Bishop => b.getBishopAttackAt location boardBitVec
+        | .Rook =>  b.getRookAttackAt location boardBitVec
+        | .Queen => b.getQueenAttackAt location boardBitVec
+        | .King => getKingAttackAt location
+      | _ => soFar )
+  if square = 0 then newAttack else b.blackAttackBitVecTr t (square - 1) newAttack boardBitVec
+/-TODO make more efficient -/ -- TODO ist es schlimm wenn man sich selber attacked?
+--- TODO überlegen entweder Ja oder Nein
+--- Man kann sich selber attacken
 /-- All the squares attacked by the Player t  -/
-def Board.getAttackBitVec (b : Board) (t : Turn) : BitVec 64 :=
-  b.possibleAttackMovesTr t 63 [] |>.foldl (fun acc m ↦ acc ||| match m with | .move l => l.2.toBitVec | _ => 0) 0
+def Board.getAttackBitVec (b : Board) (t : Turn) : UInt64 :=
+  match t with
+  | .White => b.whiteAttackBitVecTr t 63 0 b.getBitVec
+  | .Black => b.blackAttackBitVecTr t 63 0 b.getBitVec
 
 def TestBoard := FENtoBoard (parseFenString "8/2K/3NP3/8/2r1R3/8/4q3/8 test")
 
-#eval TestBoard
-#eval Board.displayBitVec <| TestBoard.getPlayerBitVec .Black
-#eval Board.displayBitVec (TestBoard.getAttackBitVec .Black)
 
 /-- True if the Player t is in check -/
 def Board.isInCheck (b : Board) (t : Turn) : Bool :=
