@@ -216,7 +216,7 @@ end Square
 /-- TODO mehr special stuff mit en passant und casteln -/
 structure Board where
   board : Vector Square 64
-  turn : Turn := .White
+deriving BEq
 
 inductive Move where
   | move (m : Location × Location)
@@ -237,13 +237,19 @@ instance : ToString Move where
 namespace Board
 
 instance : Zero Board where
-  zero := ⟨Vector.zero, .White⟩
+  zero := ⟨Vector.zero⟩
 
 def SquareAt (b : Board) (l : Location) : Square := b.board[l.toFin]
 
 def ReplaceSquareAt (b : Board) (l : Location) (s : Square) : Board where
   board := b.board.set l.toFin s
-  turn := b.turn
+
+
+def getPlayerBitVec (b : Board) (p : Turn) : UInt64 :=
+  UInt64.ofFnTr (fun i ↦ if p = .Black then (b.SquareAt i).IsBlack else (b.SquareAt i).IsWhite) 63 0
+
+/-- All the pieces -/ -- TODO vlt ist das mit foldl schneller
+def getBitVec (b : Board) : UInt64 := .ofFnTr (fun i ↦ (b.SquareAt i).IsNonempty) 63 0
 
 /-
 private def computeKnightAttacks (location : Location) : BitVec 64 :=
