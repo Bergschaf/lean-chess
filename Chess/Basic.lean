@@ -81,8 +81,8 @@ def getScore (b : Board) (player : Turn) (t : Turn) (α β : Int) (depth : Nat) 
 
 def TestBoard1 := FENtoBoard (parseFenString "1rb2bnr/2ppnkpp/p1p1p3/5pq1/8/BP2P1PB/P2P1P1P/RN1QK1NR w KQ - 2 10")
 
-#time #eval! (getScore_count TestBoard1 .White .White  α₀ β₀ 3).run 0
-#time #eval! (getScore TestBoard1 .White .White α₀ β₀ 3)
+--#time #eval! (getScore_count TestBoard1 .White .White  α₀ β₀ 3).run 0
+--#time #eval! (getScore TestBoard1 .White .White α₀ β₀ 3)
 
 
 /- TODO Was wenn keine Moves -/
@@ -94,8 +94,8 @@ def Board.bestMove (b : Board) (t : Turn) (depth : Nat) : Move × Int :=
             if score > acc.2 then (m, score) else acc) (Move.empty,α₀)
 
 
---- TODO interator verwenden???
---- TODO nicht Fin sondern Uint8 verwenden für location
+--- TODO interator verwenden (INSBESONDERE FÜR MOVE GENERATION???
+--- TODO lazy evaluatoin/caching für attack bitboards
 
 
 def main : IO Unit := do
