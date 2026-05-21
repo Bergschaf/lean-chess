@@ -43,7 +43,7 @@ def FENtoBoard (fen : FEN_String) : Board where
       for c in (fen.figures[i]'(Membership.get_elem_helper hi rfl)).toList do
         match c.toString.toNat? with
         | none =>
-          board := board.set (Location.toFin ⟨⟨i, Membership.get_elem_helper hi rfl⟩, colPos⟩) (Square.ofChar c).get!
+          board := board.set (Location.toFin (Location.ofRowCol ⟨i, Membership.get_elem_helper hi rfl⟩ colPos)) (Square.ofChar c).get!
           colPos := colPos + 1
         | some n => colPos := colPos + (Fin.ofNat 8 n)
     return board
@@ -54,16 +54,16 @@ def Board.toString (b : Board) : String := Id.run do
   let mut res := ""
   for hi : i in [:8] do
     for hj : j in [:8] do
-      res := res ++ " " ++ (b.SquareAt ⟨⟨i,Membership.get_elem_helper hi rfl⟩, ⟨j, Membership.get_elem_helper hj rfl⟩⟩).toString
+      res := res ++ " " ++ (b.SquareAt (Location.ofRowCol ⟨i,Membership.get_elem_helper hi rfl⟩ ⟨j, Membership.get_elem_helper hj rfl⟩)).toString
     res := res ++ s!" {i+1} \n"
   return header ++ res ++ header
 
-def Board.displayBitVec (bv : BitVec 64) : Std.Format := Id.run do
+def Board.displayUInt64 (bv : UInt64) : Std.Format := Id.run do
   let header := " a b c d e f g h\n"
   let mut res := ""
   for hi : i in [:8] do
     for hj : j in [:8] do
-      res := res ++ " " ++ if (⟨⟨i,Membership.get_elem_helper hi rfl⟩, ⟨j, Membership.get_elem_helper hj rfl⟩⟩ : Location).toBitVec &&& bv ≠ 0 then "■" else "·"
+      res := res ++ " " ++ if (Location.ofRowCol ⟨i,Membership.get_elem_helper hi rfl⟩ ⟨j, Membership.get_elem_helper hj rfl⟩).toUInt64 &&& bv ≠ 0 then "■" else "·"
     res := res ++ s!" {i+1} \n"
   return header ++ res ++ header
 

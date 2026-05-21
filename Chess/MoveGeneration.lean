@@ -61,10 +61,11 @@ def Board.moveUntilFailTr (b : Board) (t : Turn) (base_location : Location) (loc
   | none => moves
   | some new_location =>
     have h : new_location.distance_to_edge direction < location.distance_to_edge direction := by
-      simp [Location.distance_to_edge]
+      simp [Location.distance_to_edge] --, Location.row, Location.col]
       subst new_location'
       simp [Location.shift] at hn
-      cases direction <;> grind
+      sorry
+      --cases direction <;> simp at * <;> simp [← hn.right, Location.row, Location.col]
     match b.SquareAt new_location with
     | .Empty => b.moveUntilFailTr t base_location new_location direction ((.move (location, new_location))::moves)
     | .Black _ => if t = .Black then moves else (.move (base_location, new_location))::moves
@@ -133,32 +134,38 @@ def Board.getKingBitVec (b : Board) (t : Turn) : UInt64 :=
   | .some n => (1 : UInt64) <<< (UInt64.ofNat n)
 
 
-def UInt64.ofFnTr (f : Fin 64 → Bool) (i : Fin 64) (soFar : UInt64) :=
-  if i = 0 then soFar ||| (if f 0 then 1 else 0) else .ofFnTr f (i - 1) (soFar ||| (if f i then 1 else 0))
-
-def Board.getPlayerBitVec (b : Board) (p : Turn) : UInt64 :=
-  UInt64.ofFnTr (fun i ↦ if p = .Black then (b.SquareAt i).IsBlack else (b.SquareAt i).IsWhite) 63 0
-
-/-- All the pieces -/
-def Board.getBitVec (b : Board) : UInt64 := .ofFnTr (fun i ↦ (b.SquareAt i).IsNonempty) 63 0
-
 /-- todo da wird zuviel konvertiert -/
 def UInt64.getBitAt (x : UInt64) (i : Fin 64) : Bool := (x >>> UInt64.ofNat i.toNat) &&& 1 = 1
 
 def UInt64.bitAt (i : Fin 64) : UInt64 := (1 : UInt64) <<< UInt64.ofNat i.toNat
 
+def UInt64.ofFnTr (f : Fin 64 → Bool) (i : Nat) (hi : i < 64) (soFar : UInt64) :=
+  if i = 0 then soFar ||| (if f 0 then 1 else 0) else .ofFnTr f (i - 1) (by grind) (soFar ||| (if f ⟨i, by grind⟩ then (UInt64.bitAt ⟨i, by grind⟩) else 0))
+
+def Board.getPlayerBitVec (b : Board) (p : Turn) : UInt64 :=
+  UInt64.ofFnTr (fun i ↦ if p = .Black then (b.SquareAt i).IsBlack else (b.SquareAt i).IsWhite) 63 (by grind) 0
+
+/-- All the pieces -/
+def Board.getBitVec (b : Board) : UInt64 := .ofFnTr (fun i ↦ (b.SquareAt i).IsNonempty) 63 (by grind) 0
+
+
+def dist_in_direction (l : Location) (d : Direction) :=
+  match d with
+  | .neg_neg | .neg_pos | .zero_neg | .neg_zero => l.toFin
+  | _ => 63 - l.toFin
+
 def Board.attackUntilFail (b : Board) (location : Location) (direction : Direction) (pieces soFar : UInt64) : UInt64 :=
   match hl : location.shift direction with
   | none => soFar
   | some new_location =>
-    have h : new_location.distance_to_edge direction < location.distance_to_edge direction := by
-      simp [Location.distance_to_edge]
-      simp [Location.shift] at hl
+    have h : ↑(dist_in_direction new_location direction) < ↑(dist_in_direction location direction) := by
+      simp [dist_in_direction, Location.toFin]
+      simp [Location.shift, Location.row, Location.col] at hl
       cases direction <;> grind
     let i := new_location.toFin
     if pieces.getBitAt i = true then soFar ||| UInt64.bitAt i
     else b.attackUntilFail new_location direction pieces (soFar ||| UInt64.bitAt i)
-termination_by location.distance_to_edge direction
+termination_by dist_in_direction location direction
 
 
 def Board.attackUntilFailDirections (b : Board) (location : Location) (directions : List Direction) (pieces soFar : UInt64) :=
@@ -231,8 +238,8 @@ def Board.getAttackBitVec (b : Board) (t : Turn) : UInt64 :=
   | .Black => b.blackAttackBitVecTr t 63 0 b.getBitVec
 
 def TestBoard := FENtoBoard (parseFenString "8/2K/3NP3/8/2r1R3/8/4q3/8 test")
-
-
+#eval TestBoard
+#eval Board.displayUInt64 <| TestBoard.getAttackBitVec .Black
 /-- True if the Player t is in check -/
 def Board.isInCheck (b : Board) (t : Turn) : Bool :=
   (b.getAttackBitVec t.next &&& b.getKingBitVec t).toNat > 0
@@ -240,6 +247,8 @@ def Board.isInCheck (b : Board) (t : Turn) : Bool :=
 /-- TODO effizienter wenn König im schach steht -/
 def Board.possibleMoves (b : Board) (t : Turn) : List Move :=
   (b.possibleMovesTr t 63 []).filter (fun m ↦ ¬(b.applyMove m).isInCheck t)
+
+
 
 
 --def TestBoard := FENtoBoard (parseFenString "8/8/3NP3/8/2r1R3/8/4q3/8 test")
