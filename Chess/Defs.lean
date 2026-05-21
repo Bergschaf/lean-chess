@@ -56,6 +56,7 @@ def Square.toString (s : Square) : String :=
 
 structure Location where
   idx : Fin 64
+deriving BEq
 
 def Location.toFin (l : Location) : Fin 64 := l.idx
 
@@ -73,7 +74,7 @@ def colMap : List String := ["A","B","C","D","E","F","G","H"]
 
 instance : ToString Location where
   toString l :=
-    colMap[l.col].append (l.row + 1 : Nat).repr
+    colMap[l.col].append (l.row + 1: Nat).repr
 
 instance : Coe (Fin 64) Location where
   coe i := ⟨i⟩
@@ -159,6 +160,7 @@ def Location.shift (l : Location) (d : Direction) : Option Location :=
       if h : l.row = 0 then none
       else some ⟨l.idx.subSafe 8 (by grind [Location.row])⟩
 
+
 /-- TODO effizientere Versionen die nur links rechts oder oben unten macht -/
 def Location.shift' (l : Location) (row : Int) (col : Int) : Option Location :=
   if hi : l.row + row < 0 ∨ l.row + row > 7 ∨ l.col + col < 0 ∨ l.col + col > 7 then none else
@@ -224,6 +226,7 @@ inductive Move where
   | castle_short (w : Turn)
   | castle_long (w : Turn)
   | empty
+deriving BEq
 
 instance : Inhabited Move where
   default := Move.empty

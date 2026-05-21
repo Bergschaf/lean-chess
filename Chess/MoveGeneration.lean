@@ -23,7 +23,7 @@ def Board.getPawnMovesAt (b : Board) (t : Turn) (location : Location)
   | some forward_location =>
     if b.SquareAt forward_location |>.IsEmpty then
       moves := (.move ⟨location, forward_location⟩)::moves
-    if (if t = .Black then location.row = 1 else location.row = 6) then -- TODO zahlen überprüfen
+      if (if t = .Black then location.row = 1 else location.row = 6) then -- TODO zahlen überprüfen
         -- Wenn bauer auf dem zweiten Rang ist darf er zwei vor
         match forward_location.forward t with
         | none => panic! "Macht keinen sinn hier zu sein" -- todo proof by contradiction, dass muss man garnicht testen hier
@@ -68,7 +68,7 @@ def Board.moveUntilFailTr (b : Board) (t : Turn) (base_location : Location) (loc
       sorry
       --cases direction <;> simp at * <;> simp [← hn.right, Location.row, Location.col]
     match b.SquareAt new_location with
-    | .Empty => b.moveUntilFailTr t base_location new_location direction ((.move (location, new_location))::moves)
+    | .Empty => b.moveUntilFailTr t base_location new_location direction ((.move (base_location, new_location))::moves)
     | .Black _ => if t = .Black then moves else (.move (base_location, new_location))::moves
     | .White _ => if t = .White then moves else (.move (base_location, new_location))::moves
 termination_by location.distance_to_edge direction
@@ -126,7 +126,7 @@ private def Board.possibleMovesTr (b : Board) (t : Turn) (square : Fin 64) (move
         | .Queen => getQueenMovesAt b t location (by rw [hb, hw]; rfl)
         | .King => getKingMovesAt b t location (by rw [hb, hw]; rfl)
       else moves)
-  if square = 0 then new_moves else b.possibleMovesTr t (square - 1) new_moves
+  if hi : square = 0 then new_moves else b.possibleMovesTr t (square.pred' hi) new_moves
 
 
 def Board.getKingBitVec (b : Board) (t : Turn) : UInt64 :=
@@ -232,10 +232,14 @@ def TestBoard := FENtoBoard (parseFenString "8/2K/3NP3/8/2r1R3/8/4q3/8 test")
 def Board.isInCheck (b : Board) (t : Turn) : Bool :=
   (b.getAttackBitVec t.next &&& b.getKingBitVec t).toNat > 0
 
+/- TODO nicht list sonder iterator -/
 /-- TODO effizienter wenn König im schach steht -/
 def Board.possibleMoves (b : Board) (t : Turn) : List Move :=
   (b.possibleMovesTr t 63 []).filter (fun m ↦ ¬(b.applyMove m).isInCheck t)
 
+/-- TODO das geht besser -/
+def Board.isValidMove (b : Board) (t : Turn) (m : Move) : Bool :=
+  (b.possibleMoves t).contains m
 
 
 

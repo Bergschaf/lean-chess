@@ -5,17 +5,18 @@ import Chess.CachingM
 section Evalutation
 
 /-- Value from the Perspective of White (black gets counted negatively)-/
-def Board.valueWhite (b : Board) : Int :=
+def Board.valueForWhite (b : Board) : Int :=
   (b.board.foldl (fun acc s ↦ acc + match s with
     | Square.Empty => 0
     | .Black p => -(p.value : Int)
     | .White p => p.value
   ) 0 )
 
+-- TODO vlt wert der attackierten Pieces mit einbeziehena
 def Board.evaluate (b : Board) (t : Turn) : Int :=
   (match t with
-  | .White =>  b.valueWhite
-  | .Black => -b.valueWhite) + (b.isInCheck t).toInt * (-100)
+  | .White =>  b.valueForWhite
+  | .Black => -b.valueForWhite) + (b.isInCheck t).toInt * (-100)
 
 
 end Evalutation
@@ -28,34 +29,6 @@ def tick : CounterM Unit := do
 def α₀ := -10000000
 def β₀ :=  10000000
 def drawScore := -100
-
-/--
-α: Sicheres Maximum für Player
-β: Sichers Minimum für Gegner
--/
-def getScore_count (b : Board) (player : Turn) (t : Turn) (α β : Int) (depth : Nat) : CounterM Int := do
-  tick
-  match depth with
-  | 0 =>
-      return b.evaluate player
-  | n + 1 =>
-      let moves := b.possibleMoves t
-      match moves with
-      | [] => if b.isInCheck player then pure α₀ else pure drawScore
-      | _ =>
-        if t = player then
-          moves.foldlM (fun acc m ↦ do
-            if acc > β then pure acc else
-            let s ← getScore_count (b.applyMove m) player t.next (max α acc) β n
-            pure (max acc s)
-          ) α₀
-        else
-          moves.foldlM (fun acc m ↦ do
-            if acc < α then pure acc else
-            let s ← getScore_count (b.applyMove m) player t.next α (min β acc) n
-            pure (min acc s)
-          ) β₀
-
 
 
 /--
@@ -119,14 +92,33 @@ def main : IO Unit := do
   stdout.putStr "FEN String: "
   --let fen <- stdin.getLine
   let fen := "1rb2bnr/2ppnkpp/p1p1p3/5pq1/8/BP2P1PB/P2P1P1P/RN1QK1NR w KQ - 2 10"
-  let board := FENtoBoard (parseFenString fen)
+  let mut board := FENtoBoard (parseFenString fen)
+  let mut turn := Turn.Black
+  repeat
 
-  stdout.putStr board.toString
+    stdout.putStr board.toString
 
-  stdout.putStr "SearchDepth?"
+    stdout.putStr "SearchDepth?"
 
-  --let depth <- stdin.getLine
-  --let depth := (depth.dropEnd 1).toNat!
+    let depth <- stdin.getLine
+    let depth := (depth.dropEnd 1).toNat!
 
-  let bestMove := board.bestMove .White 6
-  stdout.putStr (toString bestMove)
+    let bestMove := board.bestMove turn depth
+    stdout.putStr (toString bestMove)
+    board := board.applyMove bestMove.1
+    stdout.putStr "------------------"
+    stdout.putStr board.toString
+    let mut playerMove := Move.empty
+    repeat
+      stdout.putStr "Your move?"
+      let input <- stdin.getLine
+      match Move.fromString (input.dropEnd 1).toString with
+      | .none => continue
+      | .some m =>
+        if board.isValidMove turn.next m then
+          playerMove := m
+          break
+        else
+          stdout.putStr (ToString.toString (board.possibleMoves turn.next))
+          stdout.putStr <| (ToString.toString m).append "Is Invalid"
+    board := board.applyMove playerMove

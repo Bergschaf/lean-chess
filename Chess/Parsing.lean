@@ -68,6 +68,45 @@ def Board.displayUInt64 (bv : UInt64) : Std.Format := Id.run do
   return header ++ res ++ header
 
 
+private def Location.letterToRowAux (c : Char) : Option (Fin 8) :=
+  match c with
+  | 'A' => .some 0
+  | 'B' => .some 1
+  | 'C' => .some 2
+  | 'D' => .some 3
+  | 'E' => .some 4
+  | 'F' => .some 5
+  | 'G' => .some 6
+  | 'H' => .some 7
+  | _ => .none
+
+
+private def Location.numberToColAux (c : Char) : Option (Fin 8) :=
+  match c with
+  | '1' => .some 0
+  | '2' => .some 1
+  | '3' => .some 2
+  | '4' => .some 3
+  | '5' => .some 4
+  | '6' => .some 5
+  | '7' => .some 6
+  | '8' => .some 7
+  | _ => .none
+
+
+/-- -/
+def Location.fromString (s : String) : Option Location := do
+  if s.length ≠ 2 then .none else Location.ofRowCol (← Location.numberToColAux (String.Pos.Raw.get s ⟨1⟩)) (← Location.letterToRowAux (String.Pos.Raw.get s ⟨0⟩))
+
+
+-- TODO keine special moves mit drin
+def Move.fromString (s : String) : Option Move := do
+  let splits := (s.split "->")
+  match splits.toList with
+  | start::target::[] => .some (.move (← Location.fromString start.toString, ← Location.fromString target.toString))
+  | _ => .none
+
+
 instance : ToString Board where
   toString b := b.toString
 
