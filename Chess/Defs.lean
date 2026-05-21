@@ -1,5 +1,6 @@
-import Lean
+import Chess.Util
 
+@[unbox]
 inductive Piece where
   | Pawn
   | Rook
@@ -18,6 +19,7 @@ def Piece.value (p : Piece) :=
   | Queen => 90
   | King => 0
 
+@[unbox]
 inductive Square where
   | Empty
   | Black (piece : Piece)
@@ -126,7 +128,7 @@ def Location.shift (l : Location) (d : Direction) : Option Location :=
   match d with
   | .neg_neg =>
       if h : l.row = 0 ∨ l.col = 0 then none
-      else some ⟨l.idx - 9⟩
+      else some ⟨l.idx.subSafe 9 (by grind [Location.row, Location.col])⟩
 
   | .pos_pos =>
       if h : l.row = 7 ∨ l.col = 7 then none
@@ -138,11 +140,11 @@ def Location.shift (l : Location) (d : Direction) : Option Location :=
 
   | .neg_pos =>
       if h : l.row = 0 ∨ l.col = 7 then none
-      else some ⟨l.idx - 7⟩
+      else some ⟨l.idx.subSafe 7 (by grind [Location.row, Location.col])⟩
 
   | .zero_neg =>
       if h : l.col = 0 then none
-      else some ⟨l.idx - 1⟩
+      else some ⟨l.idx.pred' (by grind [Location.col]) ⟩
 
   | .zero_pos =>
       if h : l.col = 7 then none
@@ -154,7 +156,7 @@ def Location.shift (l : Location) (d : Direction) : Option Location :=
 
   | .neg_zero =>
       if h : l.row = 0 then none
-      else some ⟨l.idx - 8⟩
+      else some ⟨l.idx.subSafe 8 (by grind [Location.row])⟩
 
 /-- TODO effizientere Versionen die nur links rechts oder oben unten macht -/
 def Location.shift' (l : Location) (row : Int) (col : Int) : Option Location :=

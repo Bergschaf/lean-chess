@@ -1,6 +1,7 @@
 import Chess.Parsing
 import Batteries.Data.BitVec.Basic
 
+
 /-- TODO En passant nicht beachtet und Casteln nicht beachtet -/
 def Move.IsValidMove (b : Board) (m : Move) : Prop :=
   match m with
@@ -134,19 +135,27 @@ def Board.getKingBitVec (b : Board) (t : Turn) : UInt64 :=
   | .some n => (1 : UInt64) <<< (UInt64.ofNat n)
 
 
+
+@[inline]
+def UInt64.ofFin64 (i : Fin 64) : UInt64 := .ofFin <| i.castLT <| by grind
+
+
 /-- todo da wird zuviel konvertiert -/
-def UInt64.getBitAt (x : UInt64) (i : Fin 64) : Bool := (x >>> UInt64.ofNat i.toNat) &&& 1 = 1
+@[inline]
+def UInt64.getBitAt (x : UInt64) (i : Fin 64) : Bool := (x >>> .ofFin64 i) &&& 1 = 1
 
-def UInt64.bitAt (i : Fin 64) : UInt64 := (1 : UInt64) <<< UInt64.ofNat i.toNat
+@[inline]
+def UInt64.bitAt (i : Fin 64) : UInt64 := (1 : UInt64) <<< .ofFin64 i
 
-def UInt64.ofFnTr (f : Fin 64 → Bool) (i : Nat) (hi : i < 64) (soFar : UInt64) :=
-  if i = 0 then soFar ||| (if f 0 then 1 else 0) else .ofFnTr f (i - 1) (by grind) (soFar ||| (if f ⟨i, by grind⟩ then (UInt64.bitAt ⟨i, by grind⟩) else 0))
+@[inline]
+def UInt64.ofFnTr (f : Fin 64 → Bool) (i : Fin 64) (soFar : UInt64) :=
+  if hi : i = 0 then soFar ||| (if f 0 then 1 else 0) else .ofFnTr f (i.pred' hi) (soFar ||| (if f i then (UInt64.bitAt ⟨i, by grind⟩) else 0))
 
 def Board.getPlayerBitVec (b : Board) (p : Turn) : UInt64 :=
-  UInt64.ofFnTr (fun i ↦ if p = .Black then (b.SquareAt i).IsBlack else (b.SquareAt i).IsWhite) 63 (by grind) 0
+  UInt64.ofFnTr (fun i ↦ if p = .Black then (b.SquareAt i).IsBlack else (b.SquareAt i).IsWhite) 63 0
 
 /-- All the pieces -/
-def Board.getBitVec (b : Board) : UInt64 := .ofFnTr (fun i ↦ (b.SquareAt i).IsNonempty) 63 (by grind) 0
+def Board.getBitVec (b : Board) : UInt64 := .ofFnTr (fun i ↦ (b.SquareAt i).IsNonempty) 63 0
 
 
 def dist_in_direction (l : Location) (d : Direction) :=
@@ -212,7 +221,7 @@ private def Board.whiteAttackBitVecTr (b : Board) (t : Turn) (square : Fin 64) (
         | .Queen => b.getQueenAttackAt location boardBitVec
         | .King => getKingAttackAt location
       | _ => soFar)
-  if square = 0 then newAttack else b.whiteAttackBitVecTr t (square - 1) newAttack boardBitVec
+  if hi : square = 0 then newAttack else b.whiteAttackBitVecTr t (square.pred' hi) newAttack boardBitVec
 
 /-- boardBitVec in monaden? -/
 private def Board.blackAttackBitVecTr (b : Board) (t : Turn) (square : Fin 64) (soFar boardBitVec : UInt64) :=
@@ -227,7 +236,7 @@ private def Board.blackAttackBitVecTr (b : Board) (t : Turn) (square : Fin 64) (
         | .Queen => b.getQueenAttackAt location boardBitVec
         | .King => getKingAttackAt location
       | _ => soFar )
-  if square = 0 then newAttack else b.blackAttackBitVecTr t (square - 1) newAttack boardBitVec
+  if hi : square = 0 then newAttack else b.blackAttackBitVecTr t (square.pred' hi) newAttack boardBitVec
 /-TODO make more efficient -/ -- TODO ist es schlimm wenn man sich selber attacked?
 --- TODO überlegen entweder Ja oder Nein
 --- Man kann sich selber attacken

@@ -8,6 +8,7 @@ name = "Chess"
 [[lean_exe]]
 name = "chess"
 root = "Main"
+buildType = "relWithDebInfo"
 
 [[require]]
 name = "batteries"

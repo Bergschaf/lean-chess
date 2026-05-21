@@ -15,6 +15,12 @@ def testUIntSubTr (n : UInt64):=
     testUIntSubTr (n - 1)
 termination_by n.toNat
 
---#time #eval testFinSubTr 10000000
---#time #eval testNatSubTr 10000000
---#time #eval testUIntSubTr 10000000
+def testFinPredTr (v : Fin (2^30)) :=
+  if hi : (v = 0) then 4 else
+   have h : v - 1 < v := by grind
+   testFinPredTr (v.pred (by grind)).castSucc
+/-
+#time #eval testFinSubTr 10000000
+#time #eval testNatSubTr 10000000
+#time #eval testUIntSubTr 10000000
+#time #eval testFinPredTr 10000000 -- im build dann am schnellsten -/
