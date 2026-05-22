@@ -16,8 +16,7 @@ jobs:
       - name: Run Benchmark
         run: |
           echo "Running Benchmark"
-          .lake/build/bin/benchmark
-           | tee benchmark-results/output.txt
+          .lake/build/bin/benchmark | tee benchmark-results/output.txt
 
       - name: Upload results
         uses: actions/upload-artifact@v4
