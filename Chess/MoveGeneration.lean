@@ -12,7 +12,7 @@ def Move.IsValidMove (b : Board) (m : Move) : Prop :=
 /-- TODO edge cases (TODO check for promotion)-/
 def Board.applyMove (b : Board) (m : Move)  : Board :=
   match m with
-  | Move.move m => b.ReplaceSquareAt m.1 .Empty |>.ReplaceSquareAt m.2 (b.SquareAt m.1)
+  | Move.move m => b.ReplaceSquareAt m.1 0 |>.ReplaceSquareAt m.2 (b.SquareAt m.1)
   | _ => 1
 
 def Board.getPawnMovesAt (b : Board) (t : Turn) (location : Location)
@@ -68,10 +68,10 @@ def Board.moveUntilFailTr (b : Board) (t : Turn) (base_location : Location) (loc
       simp [Location.shift] at hn
       sorry
       --cases direction <;> simp at * <;> simp [← hn.right, Location.row, Location.col]
-    match b.SquareAt new_location with
-    | .Empty => b.moveUntilFailTr t base_location new_location direction ((.move (base_location, new_location))::moves)
-    | .Black _ => if t = .Black then moves else (.move (base_location, new_location))::moves
-    | .White _ => if t = .White then moves else (.move (base_location, new_location))::moves
+    match b.SquareAt new_location|>.color with
+    | .none => b.moveUntilFailTr t base_location new_location direction ((.move (base_location, new_location))::moves)
+    | .some .Black  => if t = .Black then moves else (.move (base_location, new_location))::moves
+    | .some .White => if t = .White then moves else (.move (base_location, new_location))::moves
 termination_by location.distance_to_edge direction
 
 def Board.moveUntilFailDirectionsTr (b : Board) (t : Turn) (location : Location) (directions : List Direction) (moves : List Move) : List Move :=
@@ -106,26 +106,26 @@ def Board.getSpecialMoves (b : Board) (t : Turn) : List Move := Id.run do sorry
 
 private def Board.possibleMovesTr (b : Board) (t : Turn) (square : Fin 64) (moves : List Move) : CacheM (List Move) := do
   let new_moves ← (let location : Location := square
-    match hb : b.SquareAt location with
-    | .Empty => pure moves
-    | .White p =>
+    match hb : b.SquareAt location |>.toColorPiece with
+    | .none => pure moves
+    | .some (.White, p) =>
       if hw : t = Turn.White then
         pure <| moves ++ match p with
-        | .Pawn => getPawnMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Knight => getKnightMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Bishop => getBishopMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Rook =>  getRookMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Queen => getQueenMovesAt b t location (by rw [hb, hw]; rfl)
-        | .King => getKingMovesAt b t location (by rw [hb, hw]; rfl) else pure moves
-    | .Black p =>
+        | .Pawn => getPawnMovesAt b t location (by sorry) -- über injektivit#t von toColorPiece
+        | .Knight => getKnightMovesAt b t location (by sorry)
+        | .Bishop => getBishopMovesAt b t location (by sorry)
+        | .Rook =>  getRookMovesAt b t location (by sorry)
+        | .Queen => getQueenMovesAt b t location (by sorry)
+        | .King => getKingMovesAt b t location (by sorry) else pure moves
+    | .some (.Black, p) =>
       if hw : t = Turn.Black then
         pure <| moves ++ match p with
-        | .Pawn => getPawnMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Knight => getKnightMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Bishop => getBishopMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Rook =>  getRookMovesAt b t location (by rw [hb, hw]; rfl)
-        | .Queen => getQueenMovesAt b t location (by rw [hb, hw]; rfl)
-        | .King => getKingMovesAt b t location (by rw [hb, hw]; rfl)
+        | .Pawn => getPawnMovesAt b t location (by sorry)
+        | .Knight => getKnightMovesAt b t location (by sorry)
+        | .Bishop => getBishopMovesAt b t location (by sorry)
+        | .Rook =>  getRookMovesAt b t location (by sorry)
+        | .Queen => getQueenMovesAt b t location (by sorry)
+        | .King => getKingMovesAt b t location (by sorry)
       else pure moves)
   if hi : square = 0 then pure new_moves else b.possibleMovesTr t (square.pred' hi) new_moves
 
@@ -191,8 +191,8 @@ def Board.getQueenAttackAt (b : Board) (location : Location) (pieces : UInt64) :
 /-- boardBitVec in monaden? -/
 private def Board.whiteAttackBitVecTr (b : Board) (t : Turn) (square : Fin 64) (soFar boardBitVec : UInt64) :=
   let newAttack := (let location : Location := square
-    match hb : b.SquareAt location with
-    | .White p  =>
+    match hb : (b.SquareAt location).toColorPiece with
+    | .some (.White, p)  =>
         soFar ||| match p with
         | .Pawn => getPawnAttackAt location t
         | .Knight => getKnightAttackAt location
@@ -206,8 +206,8 @@ private def Board.whiteAttackBitVecTr (b : Board) (t : Turn) (square : Fin 64) (
 /-- boardBitVec in monaden? -/
 private def Board.blackAttackBitVecTr (b : Board) (t : Turn) (square : Fin 64) (soFar boardBitVec : UInt64) :=
   let newAttack := (let location : Location := square
-    match hb : b.SquareAt location with
-    | .Black p  =>
+    match hb : (b.SquareAt location).toColorPiece with
+    | .some (.Black, p)  =>
         soFar ||| match p with
         | .Pawn => getPawnAttackAt location t
         | .Knight => getKnightAttackAt location

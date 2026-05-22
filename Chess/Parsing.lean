@@ -11,9 +11,10 @@ def Piece.ofChar (c : Char) : Option Piece :=
   | 'k' => some .King
   | _ => none
 
+
 def Square.ofChar (c : Char) : Option Square :=
-  if c.isUpper then (Piece.ofChar c.toLower).elim none (some ∘ Square.White) else
-                  (Piece.ofChar c.toLower).elim none (some ∘ Square.Black)
+  if c.isUpper then (Piece.ofChar c.toLower).elim none (.some <| Square.ofColorPiece .White ·) else
+                  (Piece.ofChar c.toLower).elim none (.some <| Square.ofColorPiece .Black ·)
 
 
 structure FEN_String where

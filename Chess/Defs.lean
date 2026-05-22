@@ -1,5 +1,18 @@
 import Chess.Util
 
+inductive Turn where
+  | White
+  | Black
+deriving Repr, DecidableEq
+
+/-- True is White, False is Black -/
+@[inline]
+def Turn.ofBool (b : Bool) : Turn :=
+  if b then .White else .Black
+
+@[inline]
+def Turn.toBool (t : Turn) : Bool := t = .White
+
 @[unbox]
 inductive Piece where
   | Pawn
@@ -20,23 +33,75 @@ def Piece.value (p : Piece) :=
   | King => 0
 
 
+/- TODO nicht pattern matching über toNat-/
+@[inline]
+def Piece.ofUInt8 (i : UInt8) (h : i < 6) : Piece :=
+  match hi : i with
+  | 0 => Pawn
+  | 1 => Rook
+  | 2 => Knight
+  | 3 => Queen
+  | 4 => Bishop
+  | 5 => King
+  | _ => Pawn
+
+def Piece.toUInt8 (p : Piece) : {i : UInt8 // i < 6} :=
+  match p with
+  | Pawn => ⟨0, by grind⟩
+  | Rook => ⟨1, by grind⟩
+  | Knight => ⟨2, by grind⟩
+  | Queen => ⟨3, by grind⟩
+  | Bishop => ⟨4, by grind⟩
+  | King => ⟨5, by grind⟩
+
+
 -- TODO ggf optimieren, d.h. square ist nur ein u8 und der rest wird durch API geregelt
+/-
 inductive Square where
   | Empty
   | Black (piece : Piece)
-  | White (piece : Piece)
+  | White (piece : Piece)-/
+
+@[inline]
+private def Square.pieceBits (i : UInt8) : UInt8 := i &&& 0b111
+
+@[inline]
+def Square.whiteBit (i : UInt8) : Bool := (i &&& 0b1000) > 0
+
+@[inline]
+def Turn.toWhiteBit (t : Turn) : UInt8 := if t.toBool then 0b1000 else 0
+
+@[inline]
+def Square.emptyBit (i : UInt8) : Bool := (i &&& 0b10000) > 0
+
+/--
+0 -> empty
+
+-/
+structure Square where
+  val : UInt8
+  wellFormed : Square.pieceBits val < 6 := by simp_all [Square.pieceBits]; decide
 deriving DecidableEq
 
 instance : Zero Square where
-  zero := .Empty
+  zero := {val := 0b10000000}
 
 instance : Inhabited Square where
   default := 0
 
+def Square.toColorPiece (s : Square) : Option (Turn × Piece) :=
+  if Square.emptyBit s.val then .some (Turn.ofBool (Square.whiteBit s.val), Piece.ofUInt8 (pieceBits s.val) s.wellFormed) else .none
+
+def Square.color (s : Square) : Option Turn :=
+  if Square.emptyBit s.val then .some (Turn.ofBool (Square.whiteBit s.val)) else .none
+
+def Square.ofColorPiece (t : Turn) (p : Piece) : Square :=
+  ⟨t.toWhiteBit ||| p.toUInt8, sorry⟩
+
 def Square.toString (s : Square) : String :=
-  match s with
-  | .Empty => "·"
-  | .Black p =>
+  match s.toColorPiece with
+  | .none => "."
+  | .some (.Black, p) =>
     match p with
     | .Pawn => "♟"
     | .Knight => "♞"
@@ -44,7 +109,7 @@ def Square.toString (s : Square) : String :=
     | .Rook => "♜"
     | .Queen => "♛"
     | .King => "♚"
-  | .White p =>
+  | .some (.White, p) =>
     match p with
     | .Pawn => "♙"
     | .Knight => "♘"
@@ -52,7 +117,6 @@ def Square.toString (s : Square) : String :=
     | .Rook => "♖"
     | .Queen => "♕"
     | .King => "♔"
-
 
 structure Location where
   idx : Fin 64
@@ -79,11 +143,6 @@ instance : ToString Location where
 instance : Coe (Fin 64) Location where
   coe i := ⟨i⟩
 
-inductive Turn where
-  | White
-  | Black
-deriving Repr, DecidableEq
-
 def Turn.next (t : Turn) : Turn :=
   match t with
   | .White => .Black
@@ -91,9 +150,8 @@ def Turn.next (t : Turn) : Turn :=
 
 def Square.ofTurn (t : Turn) : Piece → Square :=
   match t with
-  | .White => Square.White
-  | .Black => Square.Black
-
+  | .White => fun p ↦ ⟨p.toUInt8.val ||| 0b1000, sorry⟩
+  | .Black => fun p ↦ ⟨p.toUInt8.val, sorry⟩
 
 /-- TODO beachten wer wo steht -/
 def Location.forward (l : Location) (t : Turn) : Option Location :=
@@ -188,21 +246,23 @@ def Location.distance_to_edge (l : Location) (d : Direction) : Nat :=
 
 namespace Square
 
+@[inline]
 def IsWhite (s : Square) : Bool :=
-  match s with
-  | .Empty => False
-  | .Black _ => False
-  | .White _ => True
+  match s.toColorPiece with
+  | .none => False
+  | .some (.Black, _) => False
+  | .some (.White, _) => True
 
+@[inline]
 def IsBlack (s : Square) : Bool :=
-  match s with
-  | .Empty => False
-  | .Black _ => True
-  | .White _ => False
+  match s.toColorPiece with
+  | .none => False
+  | .some (.Black, _) => True
+  | .some (.White, _) => False
 
-abbrev IsNonempty (s : Square) : Bool := s ≠ .Empty
+abbrev IsNonempty (s : Square) : Bool := ¬ (Square.emptyBit s.val)
 
-abbrev IsEmpty (s : Square) : Bool := s = .Empty
+abbrev IsEmpty (s : Square) : Bool := ¬ (Square.emptyBit s.val)
 
 abbrev CanMoveTo (s : Square) (t : Turn) : Bool := s.IsEmpty ||
   match t with

@@ -6,10 +6,10 @@ section Evalutation
 
 /-- Value from the Perspective of White (black gets counted negatively)-/
 def Board.valueForWhite (b : Board) : Int :=
-  (b.board.foldl (fun acc s ↦ acc + match s with
-    | Square.Empty => 0
-    | .Black p => -(p.value : Int)
-    | .White p => p.value
+  (b.board.foldl (fun acc s ↦ acc + match s.toColorPiece with
+    | .none => 0
+    | .some (.Black, p) => -(p.value : Int)
+    | .some (.White, p) => p.value
   ) 0 )
 
 -- TODO vlt wert der attackierten Pieces mit einbeziehena
