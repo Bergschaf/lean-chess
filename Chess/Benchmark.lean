@@ -9,22 +9,28 @@ def getSystemTime : IO Nat := do
   let millis := str[1]!.toNat! * 10
   return seconds * 1000 + millis
 
-/-- Serach depth as first argument -/
-def main (args : List String) : IO Unit := do
-  let depth : Nat := match args[0]? with
-  | .none => 4
-  | .some s => s.toNat!
 
+
+def benchmarkFunction {α : Type} (f : α → String) (a : α) : IO Unit := do
   let startHeartBeats <- IO.getNumHeartbeats
   let startTime <- getSystemTime
 
-  let bestMove := BenchmarkBoard.bestMove .White depth
-  dbg_trace bestMove
+  dbg_trace f a
 
   let endHeartBeats <- IO.getNumHeartbeats
   let endTime <- getSystemTime
 
   let stdout <- IO.getStdout
+  stdout.putStr s!"[ \{ \"Heartbeats\" : {((endHeartBeats-startHeartBeats)/1000)}, \"Time_ms\": {endTime-startTime} }]"
 
-  stdout.putStrLn s!"ΔHeartbeats: {((endHeartBeats-startHeartBeats)).toFloat / 1000000}M"
-  stdout.putStrLn s!"ΔTime: {endTime-startTime}ms"
+/-- Serach depth as first argument -/
+def main (args : List String) : IO Unit := do
+  let depth : Nat := (match args[0]? with
+  | .none => 4
+  | .some s => s.toNat!)
+
+  benchmarkFunction (fun d ↦ toString (BenchmarkBoard.bestMove .White d)) depth
+
+
+  --stdout.putStrLn s!"ΔHeartbeats: {((endHeartBeats-startHeartBeats)).toFloat / 1000000}M"
+  --stdout.putStrLn s!"ΔTime: {endTime-startTime}ms"

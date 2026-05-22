@@ -62,16 +62,6 @@ termination_by depth
 def TestBoard1 := FENtoBoard (parseFenString "1rb2bnr/2ppnkpp/p1p1p3/5pq1/8/BP2P1PB/P2P1P1P/RN1QK1NR w KQ - 2 10")
 
 
-
-#time #eval! ((Board.possibleMoves TestBoard1 .White).run ∅).1
-#eval! TestBoard1
-#eval! Board.displayUInt64 ((TestBoard1.getAttackBitVec .Black).run' ∅)
---#time #eval! ((getScore TestBoard1 .White .White α₀ β₀ 3).run ∅).1
-
---#time #eval! (getScore_count TestBoard1 .White .White  α₀ β₀ 3).run 0
---#time #eval! (getScore TestBoard1 .White .White α₀ β₀ 3)
-
-
 /- TODO Was wenn keine Moves -/
 /-- TODO sort moves by score more efficiently -/
 def Board.bestMoveM (b : Board) (t : Turn) (depth : Nat) : CacheM (Move × Int) := do
