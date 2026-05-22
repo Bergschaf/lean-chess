@@ -1,2 +1,0 @@
-ΔHeartbeats: 128.989855M
-ΔTime: 7090ms
