@@ -13,10 +13,10 @@ def Board.valueForWhite (b : Board) : Int :=
   ) 0 )
 
 -- TODO vlt wert der attackierten Pieces mit einbeziehena
-def Board.evaluate (b : Board) (t : Turn) : Int :=
-  (match t with
+def Board.evaluate (b : Board) (t : Turn) : CacheM Int := do
+  pure <| (match t with
   | .White =>  b.valueForWhite
-  | .Black => -b.valueForWhite) + (b.isInCheck t).toInt * (-100)
+  | .Black => -b.valueForWhite) + (← b.isInCheck t).toInt * (-100)
 
 
 end Evalutation
@@ -41,11 +41,11 @@ def getScore (b : Board) (player : Turn) (t : Turn) (α β : Int) (depth : Nat) 
       return s
 
   if depth = 0 then
-    return b.evaluate player
+    b.evaluate player
   else
-      let moves := b.possibleMoves t
+      let moves ← b.possibleMoves t
       if moves.isEmpty then
-         return if b.isInCheck player then α₀ else drawScore
+         return if ← b.isInCheck player then α₀ else drawScore
       if t = player then
         let s ← (moves.foldlM (fun acc m ↦ if acc > β then pure acc else
           (max acc) <$> (getScore (b.applyMove m) player t.next (max α acc) β depth.pred)) α₀)
@@ -61,7 +61,9 @@ termination_by depth
 
 def TestBoard1 := FENtoBoard (parseFenString "1rb2bnr/2ppnkpp/p1p1p3/5pq1/8/BP2P1PB/P2P1P1P/RN1QK1NR w KQ - 2 10")
 
---#time #eval! ((getScore TestBoard1 .White .White α₀ β₀ 3).run ∅).2.size
+
+--#time #eval! ((Board.possibleMoves TestBoard1 .White).run ∅).1
+--#time #eval! ((getScore TestBoard1 .White .White α₀ β₀ 3).run ∅).1
 
 --#time #eval! (getScore_count TestBoard1 .White .White  α₀ β₀ 3).run 0
 --#time #eval! (getScore TestBoard1 .White .White α₀ β₀ 3)
@@ -70,8 +72,8 @@ def TestBoard1 := FENtoBoard (parseFenString "1rb2bnr/2ppnkpp/p1p1p3/5pq1/8/BP2P
 /- TODO Was wenn keine Moves -/
 /-- TODO sort moves by score more efficiently -/
 def Board.bestMoveM (b : Board) (t : Turn) (depth : Nat) : CacheM (Move × Int) := do
-  let moves := (b.possibleMoves t)
-  (moves.mergeSort (fun m1 m2 ↦ (b.applyMove m1).evaluate t ≤ (b.applyMove m2).evaluate t)).foldlM (fun acc m ↦ do
+  let moves ← (b.possibleMoves t)
+  (moves.mergeSort (fun m1 m2 ↦ ((((b.applyMove m1).evaluate t).run' ∅).run ≤ ((b.applyMove m2).evaluate t).run' ∅))).foldlM (fun acc m ↦ do
             let score ← getScore (b.applyMove m) t t.next acc.2 β₀ depth
             let cache ← get
             dbg_trace cache.size
@@ -115,10 +117,10 @@ def main : IO Unit := do
       match Move.fromString (input.dropEnd 1).toString with
       | .none => continue
       | .some m =>
-        if board.isValidMove turn.next m then
+        if ((board.isValidMove turn.next m).run' ∅).run then
           playerMove := m
           break
         else
-          stdout.putStr (ToString.toString (board.possibleMoves turn.next))
+          --stdout.putStr (ToString.toString (board.possibleMoves turn.next))
           stdout.putStr <| (ToString.toString m).append "Is Invalid"
     board := board.applyMove playerMove

@@ -104,30 +104,30 @@ def Board.getKingMovesAt (b : Board) (t : Turn) (location : Location)
 def Board.getSpecialMoves (b : Board) (t : Turn) : List Move := Id.run do sorry
 
 
-private def Board.possibleMovesTr (b : Board) (t : Turn) (square : Fin 64) (moves : List Move) :=
-  let new_moves := (let location : Location := square
+private def Board.possibleMovesTr (b : Board) (t : Turn) (square : Fin 64) (moves : List Move) : CacheM (List Move) := do
+  let new_moves ← (let location : Location := square
     match hb : b.SquareAt location with
-    | .Empty => moves
+    | .Empty => pure moves
     | .White p =>
       if hw : t = Turn.White then
-        moves ++ match p with
+        pure <| moves ++ match p with
         | .Pawn => getPawnMovesAt b t location (by rw [hb, hw]; rfl)
         | .Knight => getKnightMovesAt b t location (by rw [hb, hw]; rfl)
         | .Bishop => getBishopMovesAt b t location (by rw [hb, hw]; rfl)
         | .Rook =>  getRookMovesAt b t location (by rw [hb, hw]; rfl)
         | .Queen => getQueenMovesAt b t location (by rw [hb, hw]; rfl)
-        | .King => getKingMovesAt b t location (by rw [hb, hw]; rfl) else moves
+        | .King => getKingMovesAt b t location (by rw [hb, hw]; rfl) else pure moves
     | .Black p =>
       if hw : t = Turn.Black then
-        moves ++ match p with
+        pure <| moves ++ match p with
         | .Pawn => getPawnMovesAt b t location (by rw [hb, hw]; rfl)
         | .Knight => getKnightMovesAt b t location (by rw [hb, hw]; rfl)
         | .Bishop => getBishopMovesAt b t location (by rw [hb, hw]; rfl)
         | .Rook =>  getRookMovesAt b t location (by rw [hb, hw]; rfl)
         | .Queen => getQueenMovesAt b t location (by rw [hb, hw]; rfl)
         | .King => getKingMovesAt b t location (by rw [hb, hw]; rfl)
-      else moves)
-  if hi : square = 0 then new_moves else b.possibleMovesTr t (square.pred' hi) new_moves
+      else pure moves)
+  if hi : square = 0 then pure new_moves else b.possibleMovesTr t (square.pred' hi) new_moves
 
 
 def Board.getKingBitVec (b : Board) (t : Turn) : UInt64 :=
@@ -221,26 +221,36 @@ private def Board.blackAttackBitVecTr (b : Board) (t : Turn) (square : Fin 64) (
 --- TODO überlegen entweder Ja oder Nein
 --- Man kann sich selber attacken
 /-- All the squares attacked by the Player t  -/
-def Board.getAttackBitVec (b : Board) (t : Turn) : UInt64 :=
-  match t with
+def Board.getAttackBitVec (b : Board) (t : Turn) : CacheM UInt64 := do
+  if let Option.some value ← lookUpCache b then
+    if t = .Black then
+      if let Option.some bitVec := value.blackAttackBitMap then
+        return bitVec
+    else
+      if let Option.some bitVec := value.whiteAttackBitMap then
+        return bitVec
+  let bitVec :=  (match t with
   | .White => b.whiteAttackBitVecTr t 63 0 b.getBitVec
-  | .Black => b.blackAttackBitVecTr t 63 0 b.getBitVec
+  | .Black => b.blackAttackBitVecTr t 63 0 b.getBitVec)
+  insertAttackBitVec b t bitVec
+  return bitVec
 
 def TestBoard := FENtoBoard (parseFenString "8/2K/3NP3/8/2r1R3/8/4q3/8 test")
+/-
 #eval TestBoard
-#eval Board.displayUInt64 <| TestBoard.getAttackBitVec .Black
+#eval Board.displayUInt64 <| TestBoard.getAttackBitVec .Black -/
 /-- True if the Player t is in check -/
-def Board.isInCheck (b : Board) (t : Turn) : Bool :=
-  (b.getAttackBitVec t.next &&& b.getKingBitVec t).toNat > 0
+def Board.isInCheck (b : Board) (t : Turn) : CacheM Bool := do
+  pure (0 < ((← b.getAttackBitVec t.next) &&& b.getKingBitVec t))
 
 /- TODO nicht list sonder iterator -/
 /-- TODO effizienter wenn König im schach steht -/
-def Board.possibleMoves (b : Board) (t : Turn) : List Move :=
-  (b.possibleMovesTr t 63 []).filter (fun m ↦ ¬(b.applyMove m).isInCheck t)
+def Board.possibleMoves (b : Board) (t : Turn) : CacheM (List Move) := do
+  (← b.possibleMovesTr t 63 []).filterM (fun m ↦ do pure ¬(← (b.applyMove m).isInCheck t))
 
 /-- TODO das geht besser -/
-def Board.isValidMove (b : Board) (t : Turn) (m : Move) : Bool :=
-  (b.possibleMoves t).contains m
+def Board.isValidMove (b : Board) (t : Turn) (m : Move) : CacheM Bool := do
+  pure <| (← b.possibleMoves t).contains m
 
 
 

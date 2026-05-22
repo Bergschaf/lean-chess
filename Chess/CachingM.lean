@@ -24,4 +24,17 @@ def insertScore (b : Board) (score : Int) : CacheM Unit := do
   modify (fun cache ↦
   match cache[b]? with
   | .none => cache.insert b ⟨.none, .none, .some score⟩
-  | .some value => cache.insert b ⟨value.blackAttackBitMap, value.blackAttackBitMap, .some score⟩)
+  | .some value => cache.insert b ⟨value.whiteAttackBitMap, value.blackAttackBitMap, .some score⟩)
+
+def insertAttackBitVec (b : Board) (t : Turn) (bv : UInt64) : CacheM Unit := do
+  match t with
+  | .White =>
+  modify (fun cache ↦
+  match cache[b]? with
+  | .none => cache.insert b ⟨.none, .some bv, .none⟩
+  | .some val => cache.insert b ⟨.some bv, val.blackAttackBitMap, val.score⟩)
+  | .Black =>
+  modify (fun cache ↦
+  match cache[b]? with
+  | .none => cache.insert b ⟨.some bv, .none, .none⟩
+  | .some val => cache.insert b ⟨val.whiteAttackBitMap, .some bv, val.score⟩)
