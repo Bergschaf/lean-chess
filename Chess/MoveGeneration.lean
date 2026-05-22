@@ -132,10 +132,8 @@ private def Board.possibleMovesTr (b : Board) (t : Turn) (square : Fin 64) (move
 
 def Board.getKingBitVec (b : Board) (t : Turn) : UInt64 :=
   match (b.board.toArray.findIdx? (· = Square.ofTurn t Piece.King)) with
-  | .none => dbg_trace "No King"; 0
+  | .none => dbg_trace "No King"; dbg_trace b.toString; panic! ""
   | .some n => (1 : UInt64) <<< (UInt64.ofNat n)
-
-
 
 
 def dist_in_direction (l : Location) (d : Direction) :=
@@ -147,10 +145,12 @@ def Board.attackUntilFail (b : Board) (location : Location) (direction : Directi
   match hl : location.shift direction with
   | none => soFar
   | some new_location =>
+
     have h : ↑(dist_in_direction new_location direction) < ↑(dist_in_direction location direction) := by
       simp [dist_in_direction, Location.toFin]
       simp [Location.shift, Location.row, Location.col] at hl
       cases direction <;> grind
+
     let i := new_location.toFin
     if pieces.getBitAt i = true then soFar ||| UInt64.bitAt i
     else b.attackUntilFail new_location direction pieces (soFar ||| UInt64.bitAt i)
@@ -222,17 +222,18 @@ private def Board.blackAttackBitVecTr (b : Board) (t : Turn) (square : Fin 64) (
 --- Man kann sich selber attacken
 /-- All the squares attacked by the Player t  -/
 def Board.getAttackBitVec (b : Board) (t : Turn) : CacheM UInt64 := do
+/-
   if let Option.some value ← lookUpCache b then
     if t = .Black then
       if let Option.some bitVec := value.blackAttackBitMap then
         return bitVec
     else
       if let Option.some bitVec := value.whiteAttackBitMap then
-        return bitVec
+        return bitVec-/
   let bitVec :=  (match t with
   | .White => b.whiteAttackBitVecTr t 63 0 b.getBitVec
   | .Black => b.blackAttackBitVecTr t 63 0 b.getBitVec)
-  insertAttackBitVec b t bitVec
+  --insertAttackBitVec b t bitVec
   return bitVec
 
 def TestBoard := FENtoBoard (parseFenString "8/2K/3NP3/8/2r1R3/8/4q3/8 test")

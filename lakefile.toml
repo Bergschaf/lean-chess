@@ -1,6 +1,6 @@
 name = "Chess"
 version = "0.1.0"
-defaultTargets = ["chess"]
+defaultTargets = ["chess", "benchmark"]
 
 [[lean_lib]]
 name = "Chess"
@@ -9,6 +9,11 @@ name = "Chess"
 name = "chess"
 root = "Main"
 buildType = "relWithDebInfo"
+
+[[lean_exe]]
+name = "benchmark"
+root = "Chess.Benchmark"
+buildType = "release"
 
 [[require]]
 name = "batteries"

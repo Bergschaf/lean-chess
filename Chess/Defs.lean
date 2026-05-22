@@ -84,19 +84,21 @@ structure Square where
 deriving DecidableEq
 
 instance : Zero Square where
-  zero := {val := 0b10000000}
+  zero := {val := 0b10000}
 
 instance : Inhabited Square where
   default := 0
 
 def Square.toColorPiece (s : Square) : Option (Turn × Piece) :=
-  if Square.emptyBit s.val then .some (Turn.ofBool (Square.whiteBit s.val), Piece.ofUInt8 (pieceBits s.val) s.wellFormed) else .none
+  if Square.emptyBit s.val then .none else .some (Turn.ofBool (Square.whiteBit s.val), Piece.ofUInt8 (pieceBits s.val) s.wellFormed)
 
 def Square.color (s : Square) : Option Turn :=
-  if Square.emptyBit s.val then .some (Turn.ofBool (Square.whiteBit s.val)) else .none
+  if Square.emptyBit s.val then .none else .some (Turn.ofBool (Square.whiteBit s.val))
 
 def Square.ofColorPiece (t : Turn) (p : Piece) : Square :=
   ⟨t.toWhiteBit ||| p.toUInt8, sorry⟩
+
+
 
 def Square.toString (s : Square) : String :=
   match s.toColorPiece with
@@ -117,6 +119,7 @@ def Square.toString (s : Square) : String :=
     | .Rook => "♖"
     | .Queen => "♕"
     | .King => "♔"
+
 
 structure Location where
   idx : Fin 64
@@ -247,22 +250,15 @@ def Location.distance_to_edge (l : Location) (d : Direction) : Nat :=
 namespace Square
 
 @[inline]
-def IsWhite (s : Square) : Bool :=
-  match s.toColorPiece with
-  | .none => False
-  | .some (.Black, _) => False
-  | .some (.White, _) => True
+def IsWhite (s : Square) : Bool := Square.whiteBit s.val
 
 @[inline]
-def IsBlack (s : Square) : Bool :=
-  match s.toColorPiece with
-  | .none => False
-  | .some (.Black, _) => True
-  | .some (.White, _) => False
+def IsBlack (s : Square) : Bool := ¬Square.whiteBit s.val
 
 abbrev IsNonempty (s : Square) : Bool := ¬ (Square.emptyBit s.val)
 
-abbrev IsEmpty (s : Square) : Bool := ¬ (Square.emptyBit s.val)
+abbrev IsEmpty (s : Square) : Bool := (Square.emptyBit s.val)
+
 
 abbrev CanMoveTo (s : Square) (t : Turn) : Bool := s.IsEmpty ||
   match t with
@@ -278,7 +274,14 @@ end Square
 /-- TODO mehr special stuff mit en passant und casteln -/
 structure Board where
   board : Vector Square 64
-deriving BEq
+
+private def Board.boardEqTr (b1 b2 : Vector Square 64) (i : Fin 64) : Bool :=
+  if hi : i = 0 then b1[0].val = b2[0].val
+  else
+    if b1[i].val = b2[i].val then Board.boardEqTr b1 b2 (i.pred' hi) else false
+
+instance : BEq Board where
+  beq b1 b2 := Board.boardEqTr b1.board b2.board 63
 
 inductive Move where
   | move (m : Location × Location)

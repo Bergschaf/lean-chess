@@ -62,7 +62,10 @@ termination_by depth
 def TestBoard1 := FENtoBoard (parseFenString "1rb2bnr/2ppnkpp/p1p1p3/5pq1/8/BP2P1PB/P2P1P1P/RN1QK1NR w KQ - 2 10")
 
 
---#time #eval! ((Board.possibleMoves TestBoard1 .White).run ∅).1
+
+#time #eval! ((Board.possibleMoves TestBoard1 .White).run ∅).1
+#eval! TestBoard1
+#eval! Board.displayUInt64 ((TestBoard1.getAttackBitVec .Black).run' ∅)
 --#time #eval! ((getScore TestBoard1 .White .White α₀ β₀ 3).run ∅).1
 
 --#time #eval! (getScore_count TestBoard1 .White .White  α₀ β₀ 3).run 0
@@ -75,52 +78,17 @@ def Board.bestMoveM (b : Board) (t : Turn) (depth : Nat) : CacheM (Move × Int) 
   let moves ← (b.possibleMoves t)
   (moves.mergeSort (fun m1 m2 ↦ ((((b.applyMove m1).evaluate t).run' ∅).run ≤ ((b.applyMove m2).evaluate t).run' ∅))).foldlM (fun acc m ↦ do
             let score ← getScore (b.applyMove m) t t.next acc.2 β₀ depth
-            let cache ← get
-            dbg_trace cache.size
+--            let cache ← get
+--            dbg_trace "Max Bucket Size: "
+--            dbg_trace ← checkHealth
+--            dbg_trace cache.size
             if score > acc.2 then pure (m, score) else pure acc) (Move.empty,α₀)
 
 
 def Board.bestMove (b : Board) (t : Turn) (depth : Nat) : Move × Int :=
-  b.bestMoveM t depth |>.run' ∅
+  b.bestMoveM t depth |>.run' freshHashMap
 
 --- TODO interator verwenden (INSBESONDERE FÜR MOVE GENERATION???
 --- TODO lazy evaluatoin/caching für attack bitboards
 
-
-def main : IO Unit := do
-  let stdin <- IO.getStdin
-  let stdout <- IO.getStdout
-
-  stdout.putStr "FEN String: "
-  --let fen <- stdin.getLine
-  let fen := "1rb2bnr/2ppnkpp/p1p1p3/5pq1/8/BP2P1PB/P2P1P1P/RN1QK1NR w KQ - 2 10"
-  let mut board := FENtoBoard (parseFenString fen)
-  let mut turn := Turn.Black
-  repeat
-
-    stdout.putStr board.toString
-
-    stdout.putStr "SearchDepth?"
-
-    let depth <- stdin.getLine
-    let depth := (depth.dropEnd 1).toNat!
-
-    let bestMove := board.bestMove turn depth
-    stdout.putStr (toString bestMove)
-    board := board.applyMove bestMove.1
-    stdout.putStr "------------------"
-    stdout.putStr board.toString
-    let mut playerMove := Move.empty
-    repeat
-      stdout.putStr "Your move?"
-      let input <- stdin.getLine
-      match Move.fromString (input.dropEnd 1).toString with
-      | .none => continue
-      | .some m =>
-        if ((board.isValidMove turn.next m).run' ∅).run then
-          playerMove := m
-          break
-        else
-          --stdout.putStr (ToString.toString (board.possibleMoves turn.next))
-          stdout.putStr <| (ToString.toString m).append "Is Invalid"
-    board := board.applyMove playerMove
+--- TODO promoten5
