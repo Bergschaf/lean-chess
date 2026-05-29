@@ -15,6 +15,7 @@ def Board.valueForWhite (b : Board) : Int :=
 
 -- TODO vlt wert der attackierten Pieces mit einbeziehena
 def Board.evaluate (b : Board) (t : Turn) : CacheM Int := do
+  count
   pure <| (match t with
   | .White =>  b.valueForWhite
   | .Black => -b.valueForWhite) + (← b.isInCheck t).toInt * (-100)
@@ -22,10 +23,6 @@ def Board.evaluate (b : Board) (t : Turn) : CacheM Int := do
 
 end Evalutation
 
-abbrev CounterM := StateM Nat
-
-def tick : CounterM Unit := do
-  modify (· + 1)
 
 def α₀ := -10000000
 def β₀ :=  10000000
@@ -67,17 +64,19 @@ def TestBoard1 := FENtoBoard (parseFenString "1rb2bnr/2ppnkpp/p1p1p3/5pq1/8/BP2P
 /-- TODO sort moves by score more efficiently -/
 def Board.bestMoveM (b : Board) (t : Turn) (depth : Nat) : CacheM (Move × Int) := do
   let moves ← (b.possibleMoves t).toList
-  (moves.mergeSort (fun m1 m2 ↦ ((((b.applyMove m1).evaluate t).run' ∅).run ≤ ((b.applyMove m2).evaluate t).run' ∅))).foldlM (fun acc m ↦ do
+  (moves.mergeSort (fun m1 m2 ↦ ((((b.applyMove m1).evaluate t).run' ⟨∅,0⟩).run ≤ ((b.applyMove m2).evaluate t).run' ⟨∅,0⟩))).foldlM (fun acc m ↦ do
             let score ← getScore (b.applyMove m) t t.next acc.2 β₀ depth
---            let cache ← get
+            let cache ← get
+            dbg_trace s!"Steps: {cache.2}"
 --            dbg_trace "Max Bucket Size: "
 --            dbg_trace ← checkHealth
 --            dbg_trace cache.size
+
             if score > acc.2 then pure (m, score) else pure acc) (Move.empty,α₀)
 
 
 def Board.bestMove (b : Board) (t : Turn) (depth : Nat) : Move × Int :=
-  b.bestMoveM t depth |>.run' freshHashMap
+  b.bestMoveM t depth |>.run' ⟨freshHashMap, 0⟩
 
 --- TODO interator verwenden (INSBESONDERE FÜR MOVE GENERATION???
 --- TODO lazy evaluatoin/caching für attack bitboards

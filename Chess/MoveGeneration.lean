@@ -3,12 +3,6 @@ import Batteries.Data.BitVec.Basic
 import Chess.CachingM
 
 
-/-- TODO En passant nicht beachtet und Casteln nicht beachtet -/
-def Move.IsValidMove (b : Board) (m : Move) : Prop :=
-  match m with
-  | Move.move m => (b.SquareAt m.1).IsNonempty ∧ ((b.SquareAt m.2).IsNonempty ∨ (b.SquareAt m.1).IsOppositeColor (b.SquareAt m.2))
-  | _ => sorry
-
 /-- TODO edge cases (TODO check for promotion)-/
 def Board.applyMove (b : Board) (m : Move)  : Board :=
   match m with
@@ -261,14 +255,16 @@ def Board.getAttackBitVec (b : Board) (t : Turn) : CacheM UInt64 := do
   return bitVec
 
 def TestBoard := FENtoBoard (parseFenString "8/2K/3NP3/8/2r1R3/8/4q3/8 test")
-/-
+/-abbrev CounterM := StateM Nat
+
+def tick : CounterM Unit := do
+  modify (· + 1)
 #eval TestBoard
 #eval Board.displayUInt64 <| TestBoard.getAttackBitVec .Black -/
 /-- True if the Player t is in check -/
 def Board.isInCheck (b : Board) (t : Turn) : CacheM Bool := do
   pure (0 < ((← b.getAttackBitVec t.next) &&& b.getKingBitVec t))
 
-#check ((0 : Fin 64)...63).iter.map
 /- TODO nicht list sonder iterator -/
 /-- TODO effizienter wenn König im schach steht -/
 def Board.possibleMoves (b : Board) (t : Turn) := -- : Std.IterM CacheM (List Move) := mit Type gehts nicht??

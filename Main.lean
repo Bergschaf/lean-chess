@@ -30,7 +30,7 @@ def main : IO Unit := do
       match Move.fromString (input.dropEnd 1).toString with
       | .none => continue
       | .some m =>
-        if ((board.isValidMove turn.next m).run' ∅).run then
+        if ((board.isValidMove turn.next m).run' ⟨∅,0⟩).run then
           playerMove := m
           break
         else
