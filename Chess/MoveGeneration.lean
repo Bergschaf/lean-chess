@@ -104,6 +104,30 @@ def Board.getKingMovesAt (b : Board) (t : Turn) (location : Location)
 def Board.getSpecialMoves (b : Board) (t : Turn) : List Move := Id.run do sorry
 
 
+private def Board.possibleMovesAt (b : Board) (t : Turn) (square : Fin 64) : CacheM (List Move) := do
+  let location : Location := square
+    match hb : b.SquareAt location |>.toColorPiece with
+    | .none => pure []
+    | .some (.White, p) =>
+      if hw : t = Turn.White then
+        pure <| match p with
+        | .Pawn => getPawnMovesAt b t location (by sorry) -- über injektivit#t von toColorPiece
+        | .Knight => getKnightMovesAt b t location (by sorry)
+        | .Bishop => getBishopMovesAt b t location (by sorry)
+        | .Rook =>  getRookMovesAt b t location (by sorry)
+        | .Queen => getQueenMovesAt b t location (by sorry)
+        | .King => getKingMovesAt b t location (by sorry) else pure []
+    | .some (.Black, p) =>
+      if hw : t = Turn.Black then
+        pure <| match p with
+        | .Pawn => getPawnMovesAt b t location (by sorry)
+        | .Knight => getKnightMovesAt b t location (by sorry)
+        | .Bishop => getBishopMovesAt b t location (by sorry)
+        | .Rook =>  getRookMovesAt b t location (by sorry)
+        | .Queen => getQueenMovesAt b t location (by sorry)
+        | .King => getKingMovesAt b t location (by sorry)
+      else pure  []
+
 private def Board.possibleMovesTr (b : Board) (t : Turn) (square : Fin 64) (moves : List Move) : CacheM (List Move) := do
   let new_moves ← (let location : Location := square
     match hb : b.SquareAt location |>.toColorPiece with
@@ -244,14 +268,19 @@ def TestBoard := FENtoBoard (parseFenString "8/2K/3NP3/8/2r1R3/8/4q3/8 test")
 def Board.isInCheck (b : Board) (t : Turn) : CacheM Bool := do
   pure (0 < ((← b.getAttackBitVec t.next) &&& b.getKingBitVec t))
 
+#check ((0 : Fin 64)...63).iter.map
 /- TODO nicht list sonder iterator -/
 /-- TODO effizienter wenn König im schach steht -/
-def Board.possibleMoves (b : Board) (t : Turn) : CacheM (List Move) := do
-  (← b.possibleMovesTr t 63 []).filterM (fun m ↦ do pure ¬(← (b.applyMove m).isInCheck t))
+def Board.possibleMoves (b : Board) (t : Turn) := -- : Std.IterM CacheM (List Move) := mit Type gehts nicht??
+  (0...63).iter.flatMapM (fun i ↦ do return (← b.possibleMovesAt t i).iterM _) |>.filterM (fun m ↦ do return (⟨(← Board.isInCheck (b.applyMove m) t).not⟩ : ULift Bool))
+--- TODO mit flatMap einen Iter Move draus machen
 
-/-- TODO das geht besser -/
+#check Board.possibleMoves
+
 def Board.isValidMove (b : Board) (t : Turn) (m : Move) : CacheM Bool := do
-  pure <| (← b.possibleMoves t).contains m
+  pure <| (← (b.possibleMoves t).toList).contains m
+--(fun i ↦ (← b.possibleMovesTr t 63 []).filterM (fun m ↦ do pure ¬(← (b.applyMove m).isInCheck t))
+
 
 
 

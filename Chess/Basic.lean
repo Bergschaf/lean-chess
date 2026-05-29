@@ -1,6 +1,7 @@
 import Chess.Profiling
 import Chess.MoveGeneration
 import Chess.CachingM
+import Init.Data.Iterators.Consumers.Monadic.Loop
 
 section Evalutation
 
@@ -43,16 +44,16 @@ def getScore (b : Board) (player : Turn) (t : Turn) (α β : Int) (depth : Nat) 
   if depth = 0 then
     b.evaluate player
   else
-      let moves ← b.possibleMoves t
-      if moves.isEmpty then
+      let moveIter := b.possibleMoves t
+      if (← moveIter.isEmpty).down then
          return if ← b.isInCheck player then α₀ else drawScore
       if t = player then
-        let s ← (moves.foldlM (fun acc m ↦ if acc > β then pure acc else
+        let s ← (moveIter.foldM (fun acc m ↦ if acc > β then pure acc else
           (max acc) <$> (getScore (b.applyMove m) player t.next (max α acc) β depth.pred)) α₀)
         insertScore b s
         pure s
       else
-        let s ← (moves.foldlM (fun acc m ↦
+        let s ← (moveIter.foldM (fun acc m ↦
           if acc < α then pure acc else
           (min acc) <$> (getScore (b.applyMove m) player t.next α (min β acc) depth.pred)) β₀)
         insertScore b s
@@ -65,7 +66,7 @@ def TestBoard1 := FENtoBoard (parseFenString "1rb2bnr/2ppnkpp/p1p1p3/5pq1/8/BP2P
 /- TODO Was wenn keine Moves -/
 /-- TODO sort moves by score more efficiently -/
 def Board.bestMoveM (b : Board) (t : Turn) (depth : Nat) : CacheM (Move × Int) := do
-  let moves ← (b.possibleMoves t)
+  let moves ← (b.possibleMoves t).toList
   (moves.mergeSort (fun m1 m2 ↦ ((((b.applyMove m1).evaluate t).run' ∅).run ≤ ((b.applyMove m2).evaluate t).run' ∅))).foldlM (fun acc m ↦ do
             let score ← getScore (b.applyMove m) t t.next acc.2 β₀ depth
 --            let cache ← get

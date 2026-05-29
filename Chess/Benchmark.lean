@@ -25,9 +25,11 @@ def benchmarkFunction {α : Type} (f : α → String) (a : α) : IO Unit := do
 
 /-- Serach depth as first argument -/
 def main (args : List String) : IO Unit := do
+  let stdout <- IO.getStdout
   let depth : Nat := (match args[0]? with
   | .none => 4
   | .some s => s.toNat!)
+  stdout.putStr s!"Depth : 4"
 
   benchmarkFunction (fun d ↦ toString (BenchmarkBoard.bestMove .White d)) depth
 
