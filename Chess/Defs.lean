@@ -315,6 +315,7 @@ def getPlayerBitVec (b : Board) (p : Turn) : UInt64 :=
   UInt64.ofFnTr (fun i ↦ if p = .Black then (b.SquareAt i).IsBlack else (b.SquareAt i).IsWhite) 63 0
 
 /-- All the pieces -/ -- TODO vlt ist das mit foldl schneller
+@[inline]
 def getBitVec (b : Board) : UInt64 := .ofFnTr (fun i ↦ (b.SquareAt i).IsNonempty) 63 0
 
 /-
